@@ -17,7 +17,7 @@
     }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #f8fafc;
+      background-color: #e6ecf5;
       color: #0f172a;
     }
     .plate-badge {
@@ -238,7 +238,7 @@
       </div>
 
       <!-- Grid de Cards de Veículos -->
-      <div id="vehicles-grid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 w-full"></div>
+      <div id="vehicles-grid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 w-full"></div>
 
       <!-- Estado Vazio (só aparece após carregamento concluído se não houver veículos) -->
       <div id="empty-state" class="hidden w-full bg-white border border-dashed border-slate-300 rounded-2xl p-6 sm:p-10 text-center">
@@ -389,6 +389,9 @@
         </div>
       </div>
 
+      <!-- Destaque da Próxima Parcela em Aberto -->
+      <div id="next-installment-spotlight" class="hidden w-full"></div>
+
       <!-- Controle de Parcelas (Cards Mobile + Tabela Full-Bleed Desktop) -->
       <div class="w-full bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div class="px-4 sm:px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -410,7 +413,7 @@
         </div>
 
         <!-- Lista Mobile (sem scroll horizontal, ideal para smartphone) -->
-        <div id="installments-mobile-list" class="md:hidden divide-y divide-slate-100"></div>
+        <div id="installments-mobile-list" class="md:hidden bg-slate-100/90 p-3 space-y-3"></div>
 
         <!-- Tabela Desktop Full-Bleed -->
         <div class="hidden md:block w-full overflow-x-auto">
@@ -773,6 +776,7 @@
       let paidCount = 0;
       let overdueCount = 0;
       let nextDueDate = null;
+      let nextOpenRow = null;
       const rows = [];
 
       for (let i = 1; i <= totalInstallments; i++) {
@@ -794,13 +798,17 @@
           }
         }
 
-        rows.push({
+        const rowObj = {
           index: i,
           dueDate,
           amount: installmentAmount,
           receivedDate,
           status: isPaid ? "paid" : isOverdue ? "overdue" : "pending"
-        });
+        };
+        if (!isPaid && !nextOpenRow) {
+          nextOpenRow = rowObj;
+        }
+        rows.push(rowObj);
       }
 
       const paidAmount = paidCount * installmentAmount;
@@ -826,6 +834,8 @@
         progressPct,
         overdueCount,
         nextDueDate,
+        nextOpenRow,
+        nextOpenIndex: nextOpenRow ? nextOpenRow.index : null,
         isCompleted,
         rows
       };
@@ -1120,10 +1130,16 @@
               ? `<span class="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">Cliente Semanal</span>`
               : `<span class="text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">Cliente Mensal</span>`;
 
+          const topAccent = metrics.isCompleted
+            ? "border-t-emerald-500"
+            : metrics.overdueCount > 0
+            ? "border-t-rose-500"
+            : "border-t-indigo-600";
+
           return `
             <article
               data-vehicle-card="${escapeHtml(vehicle.id)}"
-              class="group bg-white border border-slate-200 hover:border-indigo-400 hover:shadow-md active:scale-[0.99] rounded-xl p-4 sm:p-5 cursor-pointer transition-all flex flex-col justify-between gap-3.5"
+              class="group bg-white border border-slate-300 border-t-4 ${topAccent} shadow-md shadow-slate-300/60 hover:border-indigo-500 hover:shadow-lg active:scale-[0.99] rounded-2xl p-4 sm:p-5 cursor-pointer transition-all flex flex-col justify-between gap-3.5"
             >
               <div class="space-y-3">
                 <div class="flex items-start justify-between gap-2">
@@ -1290,7 +1306,49 @@
     const renderDetailInstallments = (metrics) => {
       const tbody = document.getElementById("installments-tbody");
       const mobileList = document.getElementById("installments-mobile-list");
+      const spotlight = document.getElementById("next-installment-spotlight");
       const filter = state.installmentFilter;
+      const itemPrefix = metrics.mode === "weekly" ? "Semana" : "Parcela";
+
+      // Card de Destaque da Próxima Parcela em Aberto
+      if (metrics.nextOpenRow) {
+        const nr = metrics.nextOpenRow;
+        const isLate = nr.status === "overdue";
+        const cardGradient = isLate
+          ? "bg-gradient-to-r from-rose-600 to-rose-700 border-rose-500 shadow-rose-200"
+          : "bg-gradient-to-r from-indigo-600 to-indigo-700 border-indigo-500 shadow-indigo-200";
+        const pillText = isLate ? "PRÓXIMA EM ABERTO · EM ATRASO" : "PRÓXIMA PARCELA EM ABERTO";
+        const btnClass = isLate
+          ? "bg-white text-rose-700 hover:bg-rose-50 active:bg-rose-100"
+          : "bg-white text-indigo-700 hover:bg-indigo-50 active:bg-indigo-100";
+
+        spotlight.className = `w-full rounded-2xl border ${cardGradient} text-white p-4 sm:p-5 shadow-lg`;
+        spotlight.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="space-y-1.5">
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-[11px] font-bold tracking-wide">
+                <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
+                <span>${pillText}</span>
+              </div>
+              <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h3 class="text-lg sm:text-xl font-extrabold">${itemPrefix} ${nr.index} / ${metrics.totalInstallments}</h3>
+                <span class="text-sm sm:text-base font-bold text-white/95">${formatBRL(nr.amount)}</span>
+              </div>
+              <p class="text-xs sm:text-sm text-white/85 flex items-center gap-1.5">
+                <i data-lucide="calendar" class="w-4 h-4 shrink-0"></i>
+                Vencimento: <strong class="text-white">${formatDateBR(nr.dueDate)}</strong>
+              </p>
+            </div>
+            <button type="button" data-action="pay-installment" data-index="${nr.index}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl ${btnClass} text-sm font-extrabold shadow-sm transition-colors shrink-0">
+              <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+              Baixar Agora
+            </button>
+          </div>
+        `;
+      } else {
+        spotlight.className = "hidden w-full";
+        spotlight.innerHTML = "";
+      }
 
       const rows = metrics.rows.filter((r) => {
         if (filter === "paid") return r.status === "paid";
@@ -1300,15 +1358,19 @@
 
       if (rows.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500 text-sm">Nenhuma parcela encontrada neste filtro.</td></tr>`;
-        mobileList.innerHTML = `<div class="p-8 text-center text-slate-500 text-sm">Nenhuma parcela encontrada neste filtro.</div>`;
+        mobileList.innerHTML = `<div class="p-8 text-center text-slate-500 text-sm bg-white rounded-xl border border-slate-200">Nenhuma parcela encontrada neste filtro.</div>`;
+        if (window.lucide) window.lucide.createIcons();
         return;
       }
-
-      const itemPrefix = metrics.mode === "weekly" ? "Semana" : "Parcela";
 
       // Desktop Table
       tbody.innerHTML = rows
         .map((row) => {
+          const isNext = row.index === metrics.nextOpenIndex;
+          const nextPill = isNext
+            ? `<span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${row.status === "overdue" ? "bg-rose-600 text-white" : "bg-indigo-600 text-white"}">Próxima</span>`
+            : "";
+
           const badgeHtml =
             row.status === "paid"
               ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Recebida</span>`
@@ -1321,46 +1383,83 @@
               ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold transition-colors">
                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Baixada (Editar)
                  </button>`
-              : `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-colors">
+              : isNext
+              ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg ${row.status === "overdue" ? "bg-rose-600 hover:bg-rose-700" : "bg-indigo-600 hover:bg-indigo-700"} text-white text-xs font-bold shadow-sm transition-colors">
+                   <i data-lucide="check" class="w-3.5 h-3.5"></i> Baixar
+                 </button>`
+              : `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors">
                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Baixar
                  </button>`;
 
+          const rowClass = isNext
+            ? row.status === "overdue"
+              ? "bg-rose-50/90 border-l-4 border-l-rose-600"
+              : "bg-indigo-50/90 border-l-4 border-l-indigo-600"
+            : row.status === "paid"
+            ? "bg-emerald-50/25"
+            : "hover:bg-slate-50";
+
           return `
-            <tr class="${row.status === "paid" ? "bg-emerald-50/25" : "hover:bg-slate-50"} transition-colors">
-              <td class="py-3 px-4 font-semibold text-slate-900 whitespace-nowrap">${itemPrefix} ${row.index} / ${metrics.totalInstallments}</td>
-              <td class="py-3 px-4 text-slate-700 whitespace-nowrap">${formatDateBR(row.dueDate)}</td>
-              <td class="py-3 px-4 font-semibold text-slate-900 whitespace-nowrap">${formatBRL(row.amount)}</td>
-              <td class="py-3 px-4 whitespace-nowrap">${badgeHtml}</td>
-              <td class="py-3 px-4 text-slate-700 whitespace-nowrap">
+            <tr class="${rowClass} transition-colors">
+              <td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">
+                <span>${itemPrefix} ${row.index} / ${metrics.totalInstallments}</span>${nextPill}
+              </td>
+              <td class="py-3.5 px-4 ${isNext ? "font-bold text-slate-900" : "text-slate-700"} whitespace-nowrap">${formatDateBR(row.dueDate)}</td>
+              <td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">${formatBRL(row.amount)}</td>
+              <td class="py-3.5 px-4 whitespace-nowrap">${badgeHtml}</td>
+              <td class="py-3.5 px-4 text-slate-700 whitespace-nowrap">
                 ${row.receivedDate ? `<span class="font-medium text-emerald-700">${formatDateBR(row.receivedDate)}</span>` : `<span class="text-slate-400">—</span>`}
               </td>
-              <td class="py-3 px-4 text-right whitespace-nowrap">${actionBtn}</td>
+              <td class="py-3.5 px-4 text-right whitespace-nowrap">${actionBtn}</td>
             </tr>
           `;
         })
         .join("");
 
-      // Mobile Cards (zero scroll horizontal, botões fáceis de tocar)
+      // Mobile Cards (cards individualizados com sombra + destaque forte na próxima em aberto)
       mobileList.innerHTML = rows
         .map((row) => {
+          const isNext = row.index === metrics.nextOpenIndex;
+          const isLate = row.status === "overdue";
+
           const badgeHtml =
             row.status === "paid"
               ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Recebida</span>`
-              : row.status === "overdue"
-              ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">Atrasada</span>`
+              : isLate
+              ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-700 border border-rose-200">Atrasada</span>`
               : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">Pendente</span>`;
+
+          const nextBanner = isNext
+            ? `<div class="-mx-4 -mt-4 mb-3 px-4 py-1.5 rounded-t-[10px] text-[11px] font-extrabold uppercase tracking-wider flex items-center gap-1.5 ${isLate ? "bg-rose-600 text-white" : "bg-indigo-600 text-white"}">
+                 <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
+                 <span>${isLate ? "Próxima em aberto · Atrasada" : "Próxima parcela em aberto"}</span>
+               </div>`
+            : "";
+
+          const cardClass = isNext
+            ? isLate
+              ? "rounded-xl p-4 space-y-3 bg-rose-50/70 border-2 border-rose-500 shadow-md"
+              : "rounded-xl p-4 space-y-3 bg-indigo-50/70 border-2 border-indigo-500 shadow-md"
+            : row.status === "paid"
+            ? "rounded-xl p-4 space-y-3 bg-emerald-50/40 border border-emerald-200 shadow-sm"
+            : "rounded-xl p-4 space-y-3 bg-white border border-slate-300 shadow-sm";
 
           const actionBtn =
             row.status === "paid"
               ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-emerald-50 active:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-colors">
                    <i data-lucide="check" class="w-4 h-4"></i> Baixada · Editar Data
                  </button>`
-              : `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-indigo-600 active:bg-indigo-700 text-white text-sm font-bold shadow-sm transition-colors">
+              : isNext
+              ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg ${isLate ? "bg-rose-600 active:bg-rose-700" : "bg-indigo-600 active:bg-indigo-700"} text-white text-sm font-extrabold shadow-sm transition-colors">
+                   <i data-lucide="check" class="w-4 h-4"></i> Baixar
+                 </button>`
+              : `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-slate-800 active:bg-indigo-600 text-white text-sm font-semibold transition-colors">
                    <i data-lucide="check" class="w-4 h-4"></i> Baixar
                  </button>`;
 
           return `
-            <div class="p-4 space-y-3 ${row.status === "paid" ? "bg-emerald-50/25" : "bg-white"}">
+            <div class="${cardClass}">
+              ${nextBanner}
               <div class="flex items-center justify-between gap-2">
                 <span class="text-sm font-bold text-slate-900">${itemPrefix} ${row.index} / ${metrics.totalInstallments}</span>
                 ${badgeHtml}
@@ -1368,7 +1467,7 @@
               <div class="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span class="text-slate-500 block">Vencimento</span>
-                  <strong class="text-slate-800 text-sm">${formatDateBR(row.dueDate)}</strong>
+                  <strong class="text-slate-900 text-sm">${formatDateBR(row.dueDate)}</strong>
                 </div>
                 <div class="text-right">
                   <span class="text-slate-500 block">Valor</span>
@@ -1377,7 +1476,7 @@
               </div>
               ${
                 row.receivedDate
-                  ? `<div class="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-50/70 px-2.5 py-1.5 rounded-lg">
+                  ? `<div class="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-100/70 px-2.5 py-1.5 rounded-lg">
                        <i data-lucide="calendar-check" class="w-3.5 h-3.5 shrink-0"></i>
                        Recebido em ${formatDateBR(row.receivedDate)}
                      </div>`
@@ -1752,6 +1851,7 @@
 
     document.getElementById("installments-tbody").addEventListener("click", handleInstallmentClick);
     document.getElementById("installments-mobile-list").addEventListener("click", handleInstallmentClick);
+    document.getElementById("next-installment-spotlight").addEventListener("click", handleInstallmentClick);
 
     document.getElementById("btn-close-payment-modal").addEventListener("click", closePaymentModal);
     document.getElementById("btn-cancel-payment-modal").addEventListener("click", closePaymentModal);
