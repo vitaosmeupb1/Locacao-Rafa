@@ -3,7 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Controle de Veículos — Locação com Intenção de Compra</title>
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="FrotaCompra" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+  <title>FrotaCompra — Controle de Veículos</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
@@ -68,7 +76,7 @@
     .spinner-ring {
       width: 44px;
       height: 44px;
-      border: 4px solid #e2e8f0;
+      border: 4px solid #cbd5e1;
       border-top-color: #4f46e5;
       border-radius: 9999px;
       animation: spin 0.8s linear infinite;
@@ -78,362 +86,433 @@
     }
   </style>
 </head>
-<body class="min-h-screen w-full antialiased pb-8">
+<body class="min-h-screen w-full antialiased">
 
-  <!-- Barra Superior Full-Bleed Responsiva -->
-  <header class="sticky top-0 z-30 w-full bg-white/95 backdrop-blur border-b border-slate-200">
-    <div class="w-full px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2 min-w-0">
-        <button id="btn-home-logo" type="button" class="flex items-center gap-2 text-left group focus:outline-none min-w-0">
-          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 group-hover:bg-indigo-700 transition-colors">
-            <i data-lucide="car" class="w-4 h-4 sm:w-5 sm:h-5"></i>
-          </div>
-          <div class="min-w-0">
-            <h1 class="text-sm sm:text-lg font-bold text-slate-900 leading-tight truncate">FrotaCompra</h1>
-            <p class="text-[11px] text-slate-500 hidden sm:block leading-tight">Locação com Intenção de Compra</p>
-          </div>
-        </button>
-      </div>
-
-      <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
-        <div id="db-status-badge" class="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-          <span id="db-status-dot" class="w-2 h-2 rounded-full bg-slate-400 animate-pulse shrink-0"></span>
-          <span id="db-status-text" class="truncate max-w-[95px] sm:max-w-none">Conectando...</span>
-        </div>
-
-        <button id="btn-open-new-vehicle" type="button" class="inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 min-h-[38px] rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition-colors">
-          <i data-lucide="plus" class="w-4 h-4 shrink-0"></i>
-          <span class="sm:hidden">Novo</span>
-          <span class="hidden sm:inline">Cadastrar Veículo</span>
-        </button>
-      </div>
+  <!-- ================= TELA DE VERIFICAÇÃO DE SESSÃO (AUTH LOADING) ================= -->
+  <div id="view-auth-loading" class="min-h-screen w-full flex flex-col items-center justify-center p-6 text-center gap-4">
+    <div class="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-200">
+      <i data-lucide="car" class="w-7 h-7"></i>
     </div>
-  </header>
-
-  <!-- Banner de Aviso de Conexão (visível apenas se Firebase cair em fallback local) -->
-  <div id="fallback-banner" class="hidden w-full bg-amber-50 border-b border-amber-200 px-3 sm:px-6 py-2.5 text-xs sm:text-sm text-amber-900 flex flex-wrap items-center justify-between gap-2">
-    <div class="flex items-center gap-2 min-w-0">
-      <i data-lucide="wifi-off" class="w-4 h-4 text-amber-600 shrink-0"></i>
-      <span id="fallback-banner-msg" class="leading-snug">Não foi possível sincronizar com o Firestore agora. Os dados estão sendo salvos localmente neste navegador.</span>
+    <div class="spinner-ring" role="status" aria-label="Verificando acesso"></div>
+    <div>
+      <p class="text-base font-bold text-slate-800">FrotaCompra</p>
+      <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Verificando autenticação...</p>
     </div>
-    <button id="btn-retry-firebase" type="button" class="px-2.5 py-1.5 rounded-md bg-amber-200/80 hover:bg-amber-200 text-amber-950 font-semibold text-xs transition-colors shrink-0">
-      Tentar reconectar
-    </button>
   </div>
 
-  <!-- CONTEÚDO PRINCIPAL FULL-WIDTH -->
-  <main class="w-full px-3 sm:px-6 py-4 sm:py-6">
-
-    <!-- ================= TELA INICIAL (LISTA DE VEÍCULOS) ================= -->
-    <section id="view-home" class="w-full space-y-4 sm:space-y-6 fade-in">
-      <!-- KPIs Gerais da Frota -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 w-full">
-        <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
-          <div class="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-medium mb-1">
-            <span class="truncate">Veículos Ativos</span>
-            <i data-lucide="car-front" class="w-4 h-4 text-indigo-500 shrink-0"></i>
-          </div>
-          <p id="kpi-total-vehicles" class="text-lg sm:text-2xl font-bold text-slate-900 truncate">0</p>
-          <p id="kpi-vehicles-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0 contratos quitados</p>
+  <!-- ================= TELA DE LOGIN (SOMENTE ACESSO RESTRITO — SEM CADASTRO/RECUPERAÇÃO) ================= -->
+  <section id="view-login" class="hidden min-h-screen w-full flex items-center justify-center p-4 fade-in">
+    <div class="w-full max-w-sm bg-white border border-slate-300 rounded-2xl shadow-xl shadow-slate-300/60 overflow-hidden">
+      <div class="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-7 text-center text-white">
+        <div class="w-14 h-14 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center mx-auto mb-3">
+          <i data-lucide="shield-check" class="w-7 h-7 text-white"></i>
         </div>
-
-        <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
-          <div class="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-medium mb-1">
-            <span class="truncate">Total Recebido</span>
-            <i data-lucide="circle-check-big" class="w-4 h-4 text-emerald-500 shrink-0"></i>
-          </div>
-          <p id="kpi-total-received" class="text-lg sm:text-2xl font-bold text-emerald-600 truncate">R$ 0,00</p>
-          <p id="kpi-received-pct" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0% do contratado</p>
-        </div>
-
-        <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
-          <div class="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-medium mb-1">
-            <span class="truncate">Saldo a Receber</span>
-            <i data-lucide="wallet" class="w-4 h-4 text-amber-500 shrink-0"></i>
-          </div>
-          <p id="kpi-total-remaining" class="text-lg sm:text-2xl font-bold text-slate-900 truncate">R$ 0,00</p>
-          <p id="kpi-contract-total" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">Total: R$ 0,00</p>
-        </div>
-
-        <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
-          <div class="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-medium mb-1">
-            <span class="truncate">Receita Mensal Est.</span>
-            <i data-lucide="calendar-clock" class="w-4 h-4 text-blue-500 shrink-0"></i>
-          </div>
-          <p id="kpi-monthly-expected" class="text-lg sm:text-2xl font-bold text-indigo-600 truncate">R$ 0,00</p>
-          <p id="kpi-weekly-expected" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">Contratos em aberto</p>
-        </div>
+        <h1 class="text-xl font-extrabold tracking-tight">FrotaCompra</h1>
+        <p class="text-xs text-indigo-100 mt-1">Acesso restrito ao administrador</p>
       </div>
 
-      <!-- Barra de Busca e Filtros -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 class="text-base sm:text-lg font-bold text-slate-900">Veículos Cadastrados</h2>
-          <p class="text-xs sm:text-sm text-slate-500">Toque em um veículo para abrir gráficos e baixar parcelas.</p>
+      <form id="form-login" class="p-6 space-y-4" novalidate>
+        <div id="login-error-box" class="hidden rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-xs font-medium text-rose-700 flex items-start gap-2">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 mt-0.5"></i>
+          <span id="login-error-text">E-mail ou senha inválidos.</span>
         </div>
 
-        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-          <div class="relative flex-1 sm:flex-initial sm:w-72">
-            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+        <div>
+          <label for="input-login-email" class="block text-xs font-semibold text-slate-700 mb-1">E-mail</label>
+          <div class="relative">
+            <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
             <input
-              id="input-search-vehicles"
-              type="text"
-              placeholder="Buscar veículo, placa ou cliente..."
-              class="w-full pl-9 pr-3 py-2.5 sm:py-2 text-base sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              id="input-login-email"
+              type="email"
+              autocomplete="username"
+              required
+              placeholder="seu@email.com"
+              class="w-full pl-9 pr-3 py-2.5 text-base sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
-          <select id="select-filter-status" class="px-3 py-2.5 sm:py-2 text-base sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="all">Todos os status</option>
-            <option value="active">Em andamento</option>
-            <option value="overdue">Com atraso</option>
-            <option value="completed">Quitados</option>
-          </select>
         </div>
-      </div>
 
-      <!-- Tela de Carregamento (evita piscar estado vazio ao recarregar) -->
-      <div id="loading-state" class="w-full space-y-4 fade-in">
-        <div class="w-full bg-white border border-slate-200 rounded-2xl p-8 sm:p-10 flex flex-col items-center justify-center text-center gap-3">
-          <div class="spinner-ring" role="status" aria-label="Carregando veículos"></div>
-          <div>
-            <p class="text-sm sm:text-base font-bold text-slate-800">Carregando seus veículos...</p>
-            <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Sincronizando cadastros e parcelas com o banco de dados.</p>
+        <div>
+          <label for="input-login-password" class="block text-xs font-semibold text-slate-700 mb-1">Senha</label>
+          <div class="relative">
+            <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            <input
+              id="input-login-password"
+              type="password"
+              autocomplete="current-password"
+              required
+              placeholder="Digite sua senha"
+              class="w-full pl-9 pr-10 py-2.5 text-base sm:text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button id="btn-toggle-password" type="button" aria-label="Mostrar ou ocultar senha" class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 w-full">
-          <div class="bg-white border border-slate-200 rounded-xl p-5 space-y-3 animate-pulse">
-            <div class="flex justify-between items-start gap-2">
-              <div class="space-y-2 flex-1">
-                <div class="h-4 bg-slate-200 rounded w-3/4"></div>
-                <div class="h-3 bg-slate-100 rounded w-1/2"></div>
-              </div>
-              <div class="h-8 w-20 bg-slate-200 rounded-md"></div>
-            </div>
-            <div class="h-12 bg-slate-100 rounded-lg"></div>
-            <div class="h-2 bg-slate-200 rounded-full w-full"></div>
-          </div>
-          <div class="bg-white border border-slate-200 rounded-xl p-5 space-y-3 animate-pulse hidden md:block">
-            <div class="flex justify-between items-start gap-2">
-              <div class="space-y-2 flex-1">
-                <div class="h-4 bg-slate-200 rounded w-2/3"></div>
-                <div class="h-3 bg-slate-100 rounded w-1/2"></div>
-              </div>
-              <div class="h-8 w-20 bg-slate-200 rounded-md"></div>
-            </div>
-            <div class="h-12 bg-slate-100 rounded-lg"></div>
-            <div class="h-2 bg-slate-200 rounded-full w-full"></div>
-          </div>
-          <div class="bg-white border border-slate-200 rounded-xl p-5 space-y-3 animate-pulse hidden xl:block">
-            <div class="flex justify-between items-start gap-2">
-              <div class="space-y-2 flex-1">
-                <div class="h-4 bg-slate-200 rounded w-3/4"></div>
-                <div class="h-3 bg-slate-100 rounded w-2/5"></div>
-              </div>
-              <div class="h-8 w-20 bg-slate-200 rounded-md"></div>
-            </div>
-            <div class="h-12 bg-slate-100 rounded-lg"></div>
-            <div class="h-2 bg-slate-200 rounded-full w-full"></div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Grid de Cards de Veículos -->
-      <div id="vehicles-grid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 w-full"></div>
-
-      <!-- Estado Vazio (só aparece após carregamento concluído se não houver veículos) -->
-      <div id="empty-state" class="hidden w-full bg-white border border-dashed border-slate-300 rounded-2xl p-6 sm:p-10 text-center">
-        <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
-          <i data-lucide="car" class="w-7 h-7"></i>
-        </div>
-        <h3 class="text-base font-bold text-slate-900 mb-1">Nenhum veículo cadastrado ainda</h3>
-        <p class="text-sm text-slate-500 max-w-md mx-auto mb-5">
-          Cadastre seu primeiro veículo alugado com intenção de compra definindo se o cliente paga por mês ou por semana.
-        </p>
-        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3">
-          <button id="btn-empty-register" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            Cadastrar Primeiro Veículo
-          </button>
-          <button id="btn-load-demo" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition-colors">
-            <i data-lucide="sparkles" class="w-4 h-4"></i>
-            Carregar Exemplo para Teste
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= TELA DEDICADA DO VEÍCULO ================= -->
-    <section id="view-detail" class="hidden w-full space-y-4 sm:space-y-6 fade-in">
-      <!-- Navegação e Ações do Veículo -->
-      <div class="flex items-center justify-between gap-2">
-        <button id="btn-back-home" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold transition-colors">
-          <i data-lucide="arrow-left" class="w-4 h-4"></i>
-          <span>Voltar</span>
+        <button id="btn-login-submit" type="submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-bold shadow-sm transition-colors flex items-center justify-center gap-2">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          <span>Entrar no Sistema</span>
         </button>
 
-        <div class="flex items-center gap-2">
-          <button id="btn-edit-vehicle" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold transition-colors">
-            <i data-lucide="pencil" class="w-4 h-4"></i>
-            <span>Editar</span>
+        <button id="btn-login-install-pwa" type="button" class="hidden w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors flex items-center justify-center gap-1.5">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Instalar Aplicativo no Celular</span>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ================= APLICATIVO PRINCIPAL (SOMENTE AUTENTICADO) ================= -->
+  <div id="app-shell" class="hidden min-h-screen w-full pb-8">
+
+    <!-- Barra Superior Full-Bleed Responsiva -->
+    <header class="sticky top-0 z-30 w-full bg-white/95 backdrop-blur border-b border-slate-200">
+      <div class="w-full px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <button id="btn-home-logo" type="button" class="flex items-center gap-2 text-left group focus:outline-none min-w-0">
+            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 group-hover:bg-indigo-700 transition-colors">
+              <i data-lucide="car" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+            </div>
+            <div class="min-w-0">
+              <h1 class="text-sm sm:text-lg font-bold text-slate-900 leading-tight truncate">FrotaCompra</h1>
+              <p id="header-user-email" class="text-[11px] text-slate-500 hidden sm:block leading-tight truncate max-w-[200px]">Locação com Intenção de Compra</p>
+            </div>
           </button>
-          <button id="btn-delete-vehicle" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 text-xs sm:text-sm font-semibold transition-colors">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-            <span>Excluir</span>
+        </div>
+
+        <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div id="db-status-badge" class="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span id="db-status-dot" class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+            <span id="db-status-text" class="truncate max-w-[80px] sm:max-w-none">Tempo Real</span>
+          </div>
+
+          <button id="btn-install-pwa" type="button" title="Instalar no celular" class="hidden inline-flex items-center justify-center gap-1 px-2.5 py-2 min-h-[38px] rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span class="hidden md:inline">Instalar</span>
+          </button>
+
+          <button id="btn-open-new-vehicle" type="button" class="inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 min-h-[38px] rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition-colors">
+            <i data-lucide="plus" class="w-4 h-4 shrink-0"></i>
+            <span class="sm:hidden">Novo</span>
+            <span class="hidden sm:inline">Cadastrar Veículo</span>
+          </button>
+
+          <button id="btn-logout" type="button" title="Sair da conta" class="inline-flex items-center justify-center p-2 min-h-[38px] min-w-[38px] rounded-lg border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-200 text-slate-600 hover:text-rose-600 transition-colors">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
+    </header>
 
-      <!-- Cabeçalho do Veículo -->
-      <div class="w-full bg-white border border-slate-200 rounded-xl p-4 sm:p-5">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div class="flex items-start gap-3 sm:gap-4 min-w-0">
-            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <i data-lucide="car" class="w-5 h-5 sm:w-6 sm:h-6"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-                <h2 id="detail-vehicle-name" class="text-lg sm:text-2xl font-extrabold text-slate-900 break-words">—</h2>
-                <span id="detail-vehicle-plate" class="plate-badge">AAA-0000</span>
-              </div>
-              <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-y-1 sm:gap-x-4 mt-2 text-xs sm:text-sm text-slate-600">
-                <span class="inline-flex items-center gap-1.5">
-                  <i data-lucide="user" class="w-4 h-4 text-slate-400 shrink-0"></i>
-                  Cliente: <strong id="detail-client-name" class="text-slate-900">—</strong>
-                </span>
-                <span class="inline-flex items-center gap-1.5">
-                  <i data-lucide="calendar" class="w-4 h-4 text-slate-400 shrink-0"></i>
-                  1º Vencimento: <strong id="detail-start-date" class="text-slate-900">—</strong>
-                </span>
-                <span class="inline-flex items-center gap-1.5">
-                  <i data-lucide="repeat" class="w-4 h-4 text-slate-400 shrink-0"></i>
-                  Plano: <strong id="detail-installment-summary" class="text-slate-900">—</strong>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Exibe APENAS a modalidade do cliente (Mensal OU Semanal) -->
-          <div id="detail-single-plan-box" class="w-full lg:w-auto px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-between lg:block lg:text-right">
-            <p id="detail-plan-value-label" class="text-[11px] uppercase tracking-wide font-semibold text-indigo-600">Parcela Mensal</p>
-            <p id="detail-plan-value-amount" class="text-lg sm:text-xl font-bold text-indigo-700">R$ 0,00</p>
-          </div>
-        </div>
-
-        <!-- Barra de Progresso Horizontal -->
-        <div class="mt-4 sm:mt-5 pt-4 border-t border-slate-100">
-          <div class="flex items-center justify-between gap-2 text-xs sm:text-sm mb-2">
-            <span class="font-semibold text-slate-700">Progresso de Quitação</span>
-            <span id="detail-progress-label" class="font-bold text-indigo-600 text-right">0%</span>
-          </div>
-          <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-            <div id="detail-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full transition-all duration-300" style="width: 0%"></div>
-          </div>
-        </div>
+    <!-- Banner de Aviso de Erro de Permissão/Conexão -->
+    <div id="fallback-banner" class="hidden w-full bg-amber-50 border-b border-amber-200 px-3 sm:px-6 py-2.5 text-xs sm:text-sm text-amber-900 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <i data-lucide="wifi-off" class="w-4 h-4 text-amber-600 shrink-0"></i>
+        <span id="fallback-banner-msg" class="leading-snug">Sem conexão com o Firestore no momento.</span>
       </div>
+      <button id="btn-retry-firebase" type="button" class="px-2.5 py-1.5 rounded-md bg-amber-200/80 hover:bg-amber-200 text-amber-950 font-semibold text-xs transition-colors shrink-0">
+        Reconectar
+      </button>
+    </div>
 
-      <!-- KPIs do Veículo -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 w-full">
-        <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
-          <p class="text-[11px] sm:text-xs font-medium text-slate-500">Valor do Contrato</p>
-          <p id="detail-kpi-total" class="text-lg sm:text-xl font-bold text-slate-900 mt-1 truncate">R$ 0,00</p>
-          <p id="detail-kpi-total-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0 parcelas</p>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
-          <p class="text-[11px] sm:text-xs font-medium text-slate-500">Total Já Recebido</p>
-          <p id="detail-kpi-paid" class="text-lg sm:text-xl font-bold text-emerald-600 mt-1 truncate">R$ 0,00</p>
-          <p id="detail-kpi-paid-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0 pagas</p>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
-          <p class="text-[11px] sm:text-xs font-medium text-slate-500">Saldo Restante</p>
-          <p id="detail-kpi-remaining" class="text-lg sm:text-xl font-bold text-amber-600 mt-1 truncate">R$ 0,00</p>
-          <p id="detail-kpi-remaining-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0 restantes</p>
-        </div>
-        <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4">
-          <p class="text-[11px] sm:text-xs font-medium text-slate-500">Próximo Vencimento</p>
-          <p id="detail-kpi-next-due" class="text-lg sm:text-xl font-bold text-indigo-600 mt-1 truncate">—</p>
-          <p id="detail-kpi-overdue-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">Em dia</p>
-        </div>
-      </div>
+    <!-- CONTEÚDO PRINCIPAL FULL-WIDTH -->
+    <main class="w-full px-3 sm:px-6 py-4 sm:py-6">
 
-      <!-- Gráficos de Progresso -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 w-full">
-        <div class="lg:col-span-4 bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col">
-          <div class="mb-3">
-            <h3 class="text-sm font-bold text-slate-900">Percentual de Quitação</h3>
-            <p class="text-xs text-slate-500">Valor já recebido vs saldo restante</p>
-          </div>
-          <div class="relative h-56 sm:h-64 w-full flex-1">
-            <canvas id="chart-progress-doughnut"></canvas>
-            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span id="doughnut-center-pct" class="text-2xl font-extrabold text-slate-900">0%</span>
-              <span class="text-xs font-medium text-slate-500">Quitado</span>
+      <!-- ================= TELA INICIAL (LISTA DE VEÍCULOS) ================= -->
+      <section id="view-home" class="w-full space-y-4 sm:space-y-6 fade-in">
+        <!-- KPIs Gerais da Frota -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 w-full">
+          <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+            <div class="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-medium mb-1">
+              <span class="truncate">Veículos Ativos</span>
+              <i data-lucide="car-front" class="w-4 h-4 text-indigo-500 shrink-0"></i>
             </div>
+            <p id="kpi-total-vehicles" class="text-lg sm:text-2xl font-bold text-slate-900 truncate">0</p>
+            <p id="kpi-vehicles-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0 contratos quitados</p>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+            <div class="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-medium mb-1">
+              <span class="truncate">Total Recebido</span>
+              <i data-lucide="circle-check-big" class="w-4 h-4 text-emerald-500 shrink-0"></i>
+            </div>
+            <p id="kpi-total-received" class="text-lg sm:text-2xl font-bold text-emerald-600 truncate">R$ 0,00</p>
+            <p id="kpi-received-pct" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0% do contratado</p>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+            <div class="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-medium mb-1">
+              <span class="truncate">Saldo a Receber</span>
+              <i data-lucide="wallet" class="w-4 h-4 text-amber-500 shrink-0"></i>
+            </div>
+            <p id="kpi-total-remaining" class="text-lg sm:text-2xl font-bold text-slate-900 truncate">R$ 0,00</p>
+            <p id="kpi-contract-total" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">Total: R$ 0,00</p>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+            <div class="flex items-center justify-between text-slate-500 text-[11px] sm:text-xs font-medium mb-1">
+              <span class="truncate">Receita Mensal Est.</span>
+              <i data-lucide="calendar-clock" class="w-4 h-4 text-blue-500 shrink-0"></i>
+            </div>
+            <p id="kpi-monthly-expected" class="text-lg sm:text-2xl font-bold text-indigo-600 truncate">R$ 0,00</p>
+            <p id="kpi-weekly-expected" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">Previsão contratos ativos</p>
           </div>
         </div>
 
-        <div class="lg:col-span-8 bg-white border border-slate-200 rounded-xl p-4 sm:p-5 flex flex-col">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <div>
-              <h3 class="text-sm font-bold text-slate-900">Evolução das Parcelas</h3>
-              <p id="bar-chart-subtitle" class="text-xs text-slate-500">Acompanhamento de parcelas recebidas e pendentes</p>
-            </div>
-            <div class="flex items-center gap-3 text-[11px] sm:text-xs font-medium text-slate-600">
-              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>Recebido</span>
-              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-rose-400"></span>Atrasado</span>
-              <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-slate-200"></span>Pendente</span>
-            </div>
-          </div>
-          <div class="relative h-56 sm:h-64 w-full flex-1">
-            <canvas id="chart-progress-bar"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Destaque da Próxima Parcela em Aberto -->
-      <div id="next-installment-spotlight" class="hidden w-full"></div>
-
-      <!-- Controle de Parcelas (Cards Mobile + Tabela Full-Bleed Desktop) -->
-      <div class="w-full bg-white border border-slate-200 rounded-xl overflow-hidden">
-        <div class="px-4 sm:px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <!-- Barra de Busca e Filtros -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <h3 class="text-base font-bold text-slate-900">Parcelas e Recebimentos</h3>
-              <span id="detail-mode-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Plano Mensal</span>
-            </div>
-            <p class="text-xs text-slate-500 mt-0.5">Toque em <strong>Baixar</strong> para registrar a data de recebimento.</p>
+            <h2 class="text-base sm:text-lg font-bold text-slate-900">Veículos Cadastrados</h2>
+            <p class="text-xs sm:text-sm text-slate-600">Toque em um veículo para abrir gráficos e baixar parcelas.</p>
           </div>
 
-          <div class="flex items-center gap-2 w-full sm:w-auto">
-            <select id="select-installment-filter" class="w-full sm:w-auto px-3 py-2 text-base sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="all">Todas as parcelas</option>
-              <option value="pending">Pendentes / Atrasadas</option>
-              <option value="paid">Recebidas</option>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+            <div class="relative flex-1 sm:flex-initial sm:w-72">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              <input
+                id="input-search-vehicles"
+                type="text"
+                placeholder="Buscar veículo, placa ou cliente..."
+                class="w-full pl-9 pr-3 py-2.5 sm:py-2 text-base sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <select id="select-filter-status" class="px-3 py-2.5 sm:py-2 text-base sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="all">Todos os status</option>
+              <option value="active">Em andamento</option>
+              <option value="overdue">Com atraso</option>
+              <option value="completed">Quitados</option>
             </select>
           </div>
         </div>
 
-        <!-- Lista Mobile (sem scroll horizontal, ideal para smartphone) -->
-        <div id="installments-mobile-list" class="md:hidden bg-slate-100/90 p-3 space-y-3"></div>
-
-        <!-- Tabela Desktop Full-Bleed -->
-        <div class="hidden md:block w-full overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                <th class="py-3 px-4">Parcela</th>
-                <th class="py-3 px-4">Vencimento</th>
-                <th class="py-3 px-4">Valor</th>
-                <th class="py-3 px-4">Status</th>
-                <th class="py-3 px-4">Data de Recebimento</th>
-                <th class="py-3 px-4 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody id="installments-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
-          </table>
+        <!-- Tela de Carregamento -->
+        <div id="loading-state" class="w-full space-y-4 fade-in">
+          <div class="w-full bg-white border border-slate-200 rounded-2xl p-8 sm:p-10 flex flex-col items-center justify-center text-center gap-3 shadow-sm">
+            <div class="spinner-ring" role="status" aria-label="Carregando veículos"></div>
+            <div>
+              <p class="text-sm sm:text-base font-bold text-slate-800">Carregando seus veículos...</p>
+              <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Sincronizando cadastros e parcelas em tempo real.</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 w-full">
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 animate-pulse">
+              <div class="flex justify-between items-start gap-2">
+                <div class="space-y-2 flex-1">
+                  <div class="h-4 bg-slate-200 rounded w-3/4"></div>
+                  <div class="h-3 bg-slate-100 rounded w-1/2"></div>
+                </div>
+                <div class="h-8 w-20 bg-slate-200 rounded-md"></div>
+              </div>
+              <div class="h-12 bg-slate-100 rounded-lg"></div>
+              <div class="h-2 bg-slate-200 rounded-full w-full"></div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 space-y-3 animate-pulse hidden md:block">
+              <div class="flex justify-between items-start gap-2">
+                <div class="space-y-2 flex-1">
+                  <div class="h-4 bg-slate-200 rounded w-2/3"></div>
+                  <div class="h-3 bg-slate-100 rounded w-1/2"></div>
+                </div>
+                <div class="h-8 w-20 bg-slate-200 rounded-md"></div>
+              </div>
+              <div class="h-12 bg-slate-100 rounded-lg"></div>
+              <div class="h-2 bg-slate-200 rounded-full w-full"></div>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
-  </main>
+
+        <!-- Grid de Cards de Veículos -->
+        <div id="vehicles-grid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 w-full"></div>
+
+        <!-- Estado Vazio -->
+        <div id="empty-state" class="hidden w-full bg-white border border-dashed border-slate-300 rounded-2xl p-6 sm:p-10 text-center shadow-sm">
+          <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="car" class="w-7 h-7"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900 mb-1">Nenhum veículo cadastrado ainda</h3>
+          <p class="text-sm text-slate-500 max-w-md mx-auto mb-5">
+            Cadastre seu primeiro veículo alugado com intenção de compra definindo se o cliente paga por mês ou por semana.
+          </p>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3">
+            <button id="btn-empty-register" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              Cadastrar Primeiro Veículo
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TELA DEDICADA DO VEÍCULO ================= -->
+      <section id="view-detail" class="hidden w-full space-y-4 sm:space-y-6 fade-in">
+        <!-- Navegação e Ações do Veículo -->
+        <div class="flex items-center justify-between gap-2">
+          <button id="btn-back-home" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold shadow-sm transition-colors">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            <span>Voltar</span>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <button id="btn-edit-vehicle" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold shadow-sm transition-colors">
+              <i data-lucide="pencil" class="w-4 h-4"></i>
+              <span>Editar</span>
+            </button>
+            <button id="btn-delete-vehicle" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 text-xs sm:text-sm font-semibold shadow-sm transition-colors">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+              <span>Excluir</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Cabeçalho do Veículo -->
+        <div class="w-full bg-white border border-slate-300 rounded-2xl p-4 sm:p-5 shadow-sm">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="flex items-start gap-3 sm:gap-4 min-w-0">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <i data-lucide="car" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                  <h2 id="detail-vehicle-name" class="text-lg sm:text-2xl font-extrabold text-slate-900 break-words">—</h2>
+                  <span id="detail-vehicle-plate" class="plate-badge">AAA-0000</span>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-y-1 sm:gap-x-4 mt-2 text-xs sm:text-sm text-slate-600">
+                  <span class="inline-flex items-center gap-1.5">
+                    <i data-lucide="user" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                    Cliente: <strong id="detail-client-name" class="text-slate-900">—</strong>
+                  </span>
+                  <span class="inline-flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                    1º Vencimento: <strong id="detail-start-date" class="text-slate-900">—</strong>
+                  </span>
+                  <span class="inline-flex items-center gap-1.5">
+                    <i data-lucide="repeat" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                    Plano: <strong id="detail-installment-summary" class="text-slate-900">—</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div id="detail-single-plan-box" class="w-full lg:w-auto px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-between lg:block lg:text-right">
+              <p id="detail-plan-value-label" class="text-[11px] uppercase tracking-wide font-semibold text-indigo-600">Parcela Mensal</p>
+              <p id="detail-plan-value-amount" class="text-lg sm:text-xl font-bold text-indigo-700">R$ 0,00</p>
+            </div>
+          </div>
+
+          <div class="mt-4 sm:mt-5 pt-4 border-t border-slate-100">
+            <div class="flex items-center justify-between gap-2 text-xs sm:text-sm mb-2">
+              <span class="font-semibold text-slate-700">Progresso de Quitação</span>
+              <span id="detail-progress-label" class="font-bold text-indigo-600 text-right">0%</span>
+            </div>
+            <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+              <div id="detail-progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KPIs do Veículo -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 w-full">
+          <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+            <p class="text-[11px] sm:text-xs font-medium text-slate-500">Valor do Contrato</p>
+            <p id="detail-kpi-total" class="text-lg sm:text-xl font-bold text-slate-900 mt-1 truncate">R$ 0,00</p>
+            <p id="detail-kpi-total-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0 parcelas</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+            <p class="text-[11px] sm:text-xs font-medium text-slate-500">Total Já Recebido</p>
+            <p id="detail-kpi-paid" class="text-lg sm:text-xl font-bold text-emerald-600 mt-1 truncate">R$ 0,00</p>
+            <p id="detail-kpi-paid-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0 pagas</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+            <p class="text-[11px] sm:text-xs font-medium text-slate-500">Saldo Restante</p>
+            <p id="detail-kpi-remaining" class="text-lg sm:text-xl font-bold text-amber-600 mt-1 truncate">R$ 0,00</p>
+            <p id="detail-kpi-remaining-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">0 restantes</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm">
+            <p class="text-[11px] sm:text-xs font-medium text-slate-500">Próximo Vencimento</p>
+            <p id="detail-kpi-next-due" class="text-lg sm:text-xl font-bold text-indigo-600 mt-1 truncate">—</p>
+            <p id="detail-kpi-overdue-sub" class="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">Em dia</p>
+          </div>
+        </div>
+
+        <!-- Gráficos de Progresso -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 w-full">
+          <div class="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col shadow-sm">
+            <div class="mb-3">
+              <h3 class="text-sm font-bold text-slate-900">Percentual de Quitação</h3>
+              <p class="text-xs text-slate-500">Valor já recebido vs saldo restante</p>
+            </div>
+            <div class="relative h-56 sm:h-64 w-full flex-1">
+              <canvas id="chart-progress-doughnut"></canvas>
+              <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span id="doughnut-center-pct" class="text-2xl font-extrabold text-slate-900">0%</span>
+                <span class="text-xs font-medium text-slate-500">Quitado</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-8 bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 flex flex-col shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">Evolução das Parcelas</h3>
+                <p id="bar-chart-subtitle" class="text-xs text-slate-500">Acompanhamento de parcelas recebidas e pendentes</p>
+              </div>
+              <div class="flex items-center gap-3 text-[11px] sm:text-xs font-medium text-slate-600">
+                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>Recebido</span>
+                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-rose-400"></span>Atrasado</span>
+                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-slate-200"></span>Pendente</span>
+              </div>
+            </div>
+            <div class="relative h-56 sm:h-64 w-full flex-1">
+              <canvas id="chart-progress-bar"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Destaque da Próxima Parcela em Aberto -->
+        <div id="next-installment-spotlight" class="hidden w-full"></div>
+
+        <!-- Controle de Parcelas -->
+        <div class="w-full bg-white border border-slate-300 rounded-2xl overflow-hidden shadow-sm">
+          <div class="px-4 sm:px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-base font-bold text-slate-900">Parcelas e Recebimentos</h3>
+                <span id="detail-mode-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Plano Mensal</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">Toque em <strong>Baixar</strong> para registrar a data de recebimento.</p>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <select id="select-installment-filter" class="w-full sm:w-auto px-3 py-2 text-base sm:text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="all">Todas as parcelas</option>
+                <option value="pending">Pendentes / Atrasadas</option>
+                <option value="paid">Recebidas</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Lista Mobile -->
+          <div id="installments-mobile-list" class="md:hidden bg-slate-100/90 p-3 space-y-3"></div>
+
+          <!-- Tabela Desktop Full-Bleed -->
+          <div class="hidden md:block w-full overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th class="py-3 px-4">Parcela</th>
+                  <th class="py-3 px-4">Vencimento</th>
+                  <th class="py-3 px-4">Valor</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4">Data de Recebimento</th>
+                  <th class="py-3 px-4 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="installments-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <!-- ================= MODAL: CADASTRAR / EDITAR VEÍCULO ================= -->
   <div id="modal-vehicle" class="hidden fixed inset-0 z-50 modal-backdrop flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -441,16 +520,18 @@
       <div class="sticky top-0 bg-white px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between z-10">
         <div>
           <h3 id="modal-vehicle-title" class="text-base sm:text-lg font-bold text-slate-900">Cadastrar Novo Veículo</h3>
-          <p class="text-xs text-slate-500">Defina os dados do veículo, cliente e modalidade de pagamento.</p>
+          <p class="text-xs text-slate-500">Todos os campos são obrigatórios e validados antes de salvar.</p>
         </div>
         <button id="btn-close-vehicle-modal" type="button" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <form id="form-vehicle" class="p-5 sm:p-6 space-y-4">
+      <form id="form-vehicle" class="p-5 sm:p-6 space-y-4" novalidate>
         <input type="hidden" id="vehicle-id-input" />
         <input type="hidden" id="input-preferred-mode" value="monthly" />
+
+        <div id="vehicle-form-error" class="hidden rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-xs font-semibold text-rose-700"></div>
 
         <!-- Seletor de Modalidade (Mensal OU Semanal) -->
         <div>
@@ -470,23 +551,23 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div class="sm:col-span-2">
             <label for="input-vehicle-name" class="block text-xs font-semibold text-slate-700 mb-1">Nome do Veículo *</label>
-            <input id="input-vehicle-name" type="text" required placeholder="Ex: Fiat Argo 1.0 2023" class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="input-vehicle-name" type="text" required minlength="2" maxlength="80" placeholder="Ex: Fiat Argo 1.0 2023" class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
             <label for="input-vehicle-plate" class="block text-xs font-semibold text-slate-700 mb-1">Placa *</label>
-            <input id="input-vehicle-plate" type="text" required maxlength="8" placeholder="ABC-1D23" class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm uppercase font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="input-vehicle-plate" type="text" required minlength="6" maxlength="8" placeholder="ABC-1D23" class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm uppercase font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
         </div>
 
         <div>
           <label for="input-client-name" class="block text-xs font-semibold text-slate-700 mb-1">Nome do Cliente *</label>
-          <input id="input-client-name" type="text" required placeholder="Ex: Carlos Eduardo Santos" class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <input id="input-client-name" type="text" required minlength="2" maxlength="80" placeholder="Ex: Carlos Eduardo Santos" class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label id="label-installment-value" for="input-installment-value" class="block text-xs font-semibold text-slate-700 mb-1">Valor da Parcela Mensal (R$) *</label>
-            <input id="input-installment-value" type="number" step="0.01" min="1" required placeholder="Ex: 2400.00" class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input id="input-installment-value" type="number" step="0.01" min="1" max="1000000" required placeholder="Ex: 2400.00" class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
             <label id="label-installment-count" for="input-installment-count" class="block text-xs font-semibold text-slate-700 mb-1">Quantidade de Parcelas (Meses) *</label>
@@ -499,7 +580,6 @@
           <input id="input-payment-date" type="date" required class="w-full px-3 py-2.5 sm:py-2 text-base sm:text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
 
-        <!-- Prévia Calculada (mostra apenas a modalidade selecionada) -->
         <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 grid grid-cols-2 gap-3 text-center">
           <div>
             <p class="text-[11px] text-slate-500 font-medium">Total do Contrato</p>
@@ -541,7 +621,7 @@
         </button>
       </div>
 
-      <form id="form-payment" class="p-5 sm:p-6 space-y-4">
+      <form id="form-payment" class="p-5 sm:p-6 space-y-4" novalidate>
         <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 text-sm">
           <div class="flex items-center justify-between gap-2">
             <span class="text-slate-500">Referência:</span>
@@ -603,1304 +683,1415 @@
   <!-- Toast Container -->
   <div id="toast-container" class="fixed bottom-4 left-3 right-3 sm:left-auto sm:right-4 z-50 flex flex-col gap-2 sm:max-w-sm"></div>
 
-  <!-- ================= SCRIPT PRINCIPAL (FIREBASE 13.4.0 + APP) ================= -->
+  <!-- ================= SCRIPT PRINCIPAL ENCAPSULADO (ZERO GLOBAIS NO WINDOW) ================= -->
   <script type="module">
-    const firebaseConfig = {
-      apiKey: "AIzaSyCsZTBrYwhYLwtjWzkCe1nuqFfkGFJB8FY",
-      authDomain: "locacao-rafa.firebaseapp.com",
-      projectId: "locacao-rafa",
-      storageBucket: "locacao-rafa.firebasestorage.app",
-      messagingSenderId: "220820793174",
-      appId: "1:220820793174:web:a59ed592e33ee95077d8f7"
-    };
+    (() => {
+      "use strict";
 
-    const COLLECTION_NAME = "veiculos_locacao";
-    const LOCAL_STORAGE_KEY = "frotacompra_veiculos_v1";
+      // Configuração congelada e privada ao escopo do módulo (invisível no Console)
+      const firebaseConfig = Object.freeze({
+        apiKey: "AIzaSyCsZTBrYwhYLwtjWzkCe1nuqFfkGFJB8FY",
+        authDomain: "locacao-rafa.firebaseapp.com",
+        projectId: "locacao-rafa",
+        storageBucket: "locacao-rafa.firebasestorage.app",
+        messagingSenderId: "220820793174",
+        appId: "1:220820793174:web:a59ed592e33ee95077d8f7"
+      });
 
-    const state = {
-      vehicles: [],
-      isLoading: true,
-      selectedVehicleId: null,
-      installmentFilter: "all",
-      searchQuery: "",
-      statusFilter: "all",
-      dbMode: "connecting", // "firebase" | "local" | "connecting"
-      pendingPaymentTarget: null, // { vehicleId, index, mode }
-      doughnutChart: null,
-      barChart: null,
-      unsubscribeSnapshot: null
-    };
+      const COLLECTION_NAME = "veiculos_locacao";
+      const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-    let db = null;
-    let fsApi = null;
+      const state = {
+        user: null,
+        authReady: false,
+        vehicles: [],
+        isLoadingData: true,
+        selectedVehicleId: null,
+        installmentFilter: "all",
+        searchQuery: "",
+        statusFilter: "all",
+        pendingPaymentTarget: null,
+        doughnutChart: null,
+        barChart: null,
+        unsubscribeSnapshot: null,
+        deferredInstallPrompt: null
+      };
 
-    // ==================== UTILITÁRIOS ====================
-    const formatBRL = (value) => {
-      const num = Number(value) || 0;
-      return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    };
+      let db = null;
+      let auth = null;
+      let fsApi = null;
+      let authApi = null;
 
-    const todayISO = () => {
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = String(now.getMonth() + 1).padStart(2, "0");
-      const d = String(now.getDate()).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    };
-
-    const parseISODate = (iso) => {
-      if (!iso) return new Date();
-      const [y, m, d] = iso.split("-").map(Number);
-      return new Date(y, (m || 1) - 1, d || 1);
-    };
-
-    const toISODate = (dateObj) => {
-      const y = dateObj.getFullYear();
-      const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-      const d = String(dateObj.getDate()).padStart(2, "0");
-      return `${y}-${m}-${d}`;
-    };
-
-    const formatDateBR = (iso) => {
-      if (!iso) return "—";
-      const [y, m, d] = iso.split("-");
-      if (!y || !m || !d) return iso;
-      return `${d}/${m}/${y}`;
-    };
-
-    const addMonthsISO = (baseISO, monthsToAdd) => {
-      const base = parseISODate(baseISO);
-      const targetDay = base.getDate();
-      const d = new Date(base.getFullYear(), base.getMonth() + monthsToAdd, 1);
-      const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-      d.setDate(Math.min(targetDay, lastDay));
-      return toISODate(d);
-    };
-
-    const addDaysISO = (baseISO, daysToAdd) => {
-      const d = parseISODate(baseISO);
-      d.setDate(d.getDate() + daysToAdd);
-      return toISODate(d);
-    };
-
-    const escapeHtml = (str) => {
-      return String(str ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    };
-
-    const showToast = (message, type = "success") => {
-      const container = document.getElementById("toast-container");
-      const toast = document.createElement("div");
-      const colors =
-        type === "error"
-          ? "bg-rose-600 text-white"
-          : type === "info"
-          ? "bg-slate-800 text-white"
-          : "bg-emerald-600 text-white";
-      toast.className = `${colors} px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 fade-in`;
-      toast.textContent = message;
-      container.appendChild(toast);
-      setTimeout(() => {
-        toast.style.opacity = "0";
-        toast.style.transition = "opacity 0.25s ease";
-        setTimeout(() => toast.remove(), 260);
-      }, 3000);
-    };
-
-    const saveLocal = () => {
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state.vehicles));
-      } catch (e) {}
-    };
-
-    const loadLocal = () => {
-      try {
-        const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        return [];
-      }
-    };
-
-    // ==================== MODELO DE PARCELAS EXCLUSIVO POR MODALIDADE ====================
-    // Suporta tanto novos cadastros (`unitMode: "direct"`) quanto cadastros anteriores (retrocompatível):
-    // - Se preferredMode === "monthly": lista N parcelas mensais (p_1 .. p_N ou m1_w1..m1_w4).
-    // - Se preferredMode === "weekly": lista N parcelas semanais (se unitMode === "direct", usa installmentCount e installmentValue diretos; se legado, usa installmentCount*4 e installmentValue/4).
-
-    const getPaymentDateForInstallment = (vehicle, index, mode, isDirectWeekly) => {
-      const directMap = vehicle.payments || {};
-      const legacyMap = vehicle.weeklyPayments || {};
-
-      if (directMap[`p_${index}`]) return directMap[`p_${index}`];
-
-      if (mode === "monthly") {
-        // Retrocompatibilidade com weeklyPayments: considera pago se todas as 4 semanas do mês foram marcadas
-        const w1 = legacyMap[`m${index}_w1`];
-        const w2 = legacyMap[`m${index}_w2`];
-        const w3 = legacyMap[`m${index}_w3`];
-        const w4 = legacyMap[`m${index}_w4`];
-        if (w1 && w2 && w3 && w4) {
-          return [w1, w2, w3, w4].sort().slice(-1)[0];
+      // ==================== REGISTRO PWA (SERVICE WORKER + INSTALL PROMPT) ====================
+      const setupPWA = () => {
+        if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+          navigator.serviceWorker.register("sw.js").catch(() => {});
         }
-        return null;
-      } else {
-        // Semanal
-        if (!isDirectWeekly) {
-          const m = Math.floor((index - 1) / 4) + 1;
-          const w = ((index - 1) % 4) + 1;
-          if (legacyMap[`m${m}_w${w}`]) return legacyMap[`m${m}_w${w}`];
+
+        window.addEventListener("beforeinstallprompt", (e) => {
+          e.preventDefault();
+          state.deferredInstallPrompt = e;
+          document.getElementById("btn-install-pwa").classList.remove("hidden");
+          document.getElementById("btn-login-install-pwa").classList.remove("hidden");
+        });
+
+        window.addEventListener("appinstalled", () => {
+          state.deferredInstallPrompt = null;
+          document.getElementById("btn-install-pwa").classList.add("hidden");
+          document.getElementById("btn-login-install-pwa").classList.add("hidden");
+          showToast("Aplicativo instalado na tela inicial!");
+        });
+      };
+
+      const triggerPWAInstall = async () => {
+        if (!state.deferredInstallPrompt) return;
+        state.deferredInstallPrompt.prompt();
+        try {
+          await state.deferredInstallPrompt.userChoice;
+        } catch (e) {}
+        state.deferredInstallPrompt = null;
+        document.getElementById("btn-install-pwa").classList.add("hidden");
+        document.getElementById("btn-login-install-pwa").classList.add("hidden");
+      };
+
+      // ==================== UTILITÁRIOS E VALIDAÇÃO RIGOROSA ====================
+      const formatBRL = (value) => {
+        const num = Number(value) || 0;
+        return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      };
+
+      const todayISO = () => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, "0");
+        const d = String(now.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      };
+
+      const isValidISODate = (str) => {
+        if (typeof str !== "string" || !ISO_DATE_RE.test(str)) return false;
+        const [y, m, d] = str.split("-").map(Number);
+        const dt = new Date(y, m - 1, d);
+        return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+      };
+
+      const parseISODate = (iso) => {
+        if (!isValidISODate(iso)) return new Date();
+        const [y, m, d] = iso.split("-").map(Number);
+        return new Date(y, m - 1, d);
+      };
+
+      const toISODate = (dateObj) => {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+        const d = String(dateObj.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      };
+
+      const formatDateBR = (iso) => {
+        if (!iso || typeof iso !== "string") return "—";
+        const [y, m, d] = iso.split("-");
+        if (!y || !m || !d) return iso;
+        return `${d}/${m}/${y}`;
+      };
+
+      const addMonthsISO = (baseISO, monthsToAdd) => {
+        const base = parseISODate(baseISO);
+        const targetDay = base.getDate();
+        const d = new Date(base.getFullYear(), base.getMonth() + monthsToAdd, 1);
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        d.setDate(Math.min(targetDay, lastDay));
+        return toISODate(d);
+      };
+
+      const addDaysISO = (baseISO, daysToAdd) => {
+        const d = parseISODate(baseISO);
+        d.setDate(d.getDate() + daysToAdd);
+        return toISODate(d);
+      };
+
+      const escapeHtml = (str) => {
+        return String(str ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      };
+
+      const showToast = (message, type = "success") => {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        const colors =
+          type === "error"
+            ? "bg-rose-600 text-white"
+            : type === "info"
+            ? "bg-slate-800 text-white"
+            : "bg-emerald-600 text-white";
+        toast.className = `${colors} px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 fade-in`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          toast.style.transition = "opacity 0.25s ease";
+          setTimeout(() => toast.remove(), 260);
+        }, 3200);
+      };
+
+      // Validação rigorosa: impede campos em branco ou sobrescrita com dados vazios
+      const validateVehiclePayload = (raw) => {
+        const name = String(raw?.name ?? "").trim();
+        const plate = String(raw?.plate ?? "").trim().toUpperCase();
+        const clientName = String(raw?.clientName ?? "").trim();
+        const installmentValue = Number(raw?.installmentValue);
+        const installmentCount = Number(raw?.installmentCount);
+        const paymentDate = String(raw?.paymentDate ?? "").trim();
+        const preferredMode = raw?.preferredMode === "weekly" ? "weekly" : raw?.preferredMode === "monthly" ? "monthly" : null;
+
+        if (name.length < 2) return { ok: false, error: "Informe o nome do veículo (mínimo 2 caracteres)." };
+        if (plate.length < 6 || plate.length > 8) return { ok: false, error: "Informe uma placa válida (ex: ABC-1D23)." };
+        if (clientName.length < 2) return { ok: false, error: "Informe o nome completo do cliente." };
+        if (!Number.isFinite(installmentValue) || installmentValue <= 0 || installmentValue > 1000000) {
+          return { ok: false, error: "Informe um valor de parcela maior que zero." };
         }
-        return null;
-      }
-    };
+        if (!Number.isInteger(installmentCount) || installmentCount < 1 || installmentCount > 500) {
+          return { ok: false, error: "Informe uma quantidade de parcelas válida (entre 1 e 500)." };
+        }
+        if (!isValidISODate(paymentDate)) {
+          return { ok: false, error: "Informe uma data válida para o 1º pagamento." };
+        }
+        if (!preferredMode) {
+          return { ok: false, error: "Selecione a modalidade Mensal ou Semanal." };
+        }
 
-    const computeVehicleMetrics = (vehicle) => {
-      const mode = vehicle.preferredMode === "weekly" ? "weekly" : "monthly";
-      const isDirectWeekly = mode === "weekly" && vehicle.unitMode === "direct";
+        return {
+          ok: true,
+          data: {
+            name,
+            plate,
+            clientName,
+            installmentValue: Number(installmentValue.toFixed(2)),
+            installmentCount,
+            paymentDate,
+            preferredMode,
+            unitMode: "direct"
+          }
+        };
+      };
 
-      const rawCount = Math.max(1, parseInt(vehicle.installmentCount, 10) || 1);
-      const rawValue = Math.max(0, Number(vehicle.installmentValue) || 0);
+      // ==================== MODELO DE PARCELAS ====================
+      const getPaymentDateForInstallment = (vehicle, index, mode, isDirectWeekly) => {
+        const directMap = vehicle.payments || {};
+        const legacyMap = vehicle.weeklyPayments || {};
 
-      const totalInstallments = mode === "weekly" && !isDirectWeekly ? rawCount * 4 : rawCount;
-      const installmentAmount = mode === "weekly" && !isDirectWeekly ? rawValue / 4 : rawValue;
-      const totalContract = installmentAmount * totalInstallments;
-      const monthlyEquivalent = mode === "weekly" ? installmentAmount * 4 : installmentAmount;
+        if (directMap[`p_${index}`]) return directMap[`p_${index}`];
 
-      const today = todayISO();
-      let paidCount = 0;
-      let overdueCount = 0;
-      let nextDueDate = null;
-      let nextOpenRow = null;
-      const rows = [];
-
-      for (let i = 1; i <= totalInstallments; i++) {
-        const dueDate =
-          mode === "monthly"
-            ? addMonthsISO(vehicle.paymentDate, i - 1)
-            : addDaysISO(vehicle.paymentDate, (i - 1) * 7);
-
-        const receivedDate = getPaymentDateForInstallment(vehicle, i, mode, isDirectWeekly);
-        const isPaid = Boolean(receivedDate);
-        const isOverdue = !isPaid && dueDate < today;
-
-        if (isPaid) {
-          paidCount++;
+        if (mode === "monthly") {
+          const w1 = legacyMap[`m${index}_w1`];
+          const w2 = legacyMap[`m${index}_w2`];
+          const w3 = legacyMap[`m${index}_w3`];
+          const w4 = legacyMap[`m${index}_w4`];
+          if (w1 && w2 && w3 && w4) {
+            return [w1, w2, w3, w4].sort().slice(-1)[0];
+          }
+          return null;
         } else {
-          if (isOverdue) overdueCount++;
-          if (!nextDueDate || dueDate < nextDueDate) {
-            nextDueDate = dueDate;
+          if (!isDirectWeekly) {
+            const m = Math.floor((index - 1) / 4) + 1;
+            const w = ((index - 1) % 4) + 1;
+            if (legacyMap[`m${m}_w${w}`]) return legacyMap[`m${m}_w${w}`];
+          }
+          return null;
+        }
+      };
+
+      const computeVehicleMetrics = (vehicle) => {
+        const mode = vehicle.preferredMode === "weekly" ? "weekly" : "monthly";
+        const isDirectWeekly = mode === "weekly" && vehicle.unitMode === "direct";
+
+        const rawCount = Math.max(1, parseInt(vehicle.installmentCount, 10) || 1);
+        const rawValue = Math.max(0, Number(vehicle.installmentValue) || 0);
+
+        const totalInstallments = mode === "weekly" && !isDirectWeekly ? rawCount * 4 : rawCount;
+        const installmentAmount = mode === "weekly" && !isDirectWeekly ? rawValue / 4 : rawValue;
+        const totalContract = installmentAmount * totalInstallments;
+        const monthlyEquivalent = mode === "weekly" ? installmentAmount * 4 : installmentAmount;
+
+        const today = todayISO();
+        let paidCount = 0;
+        let overdueCount = 0;
+        let nextDueDate = null;
+        let nextOpenRow = null;
+        const rows = [];
+
+        for (let i = 1; i <= totalInstallments; i++) {
+          const dueDate =
+            mode === "monthly"
+              ? addMonthsISO(vehicle.paymentDate, i - 1)
+              : addDaysISO(vehicle.paymentDate, (i - 1) * 7);
+
+          const receivedDate = getPaymentDateForInstallment(vehicle, i, mode, isDirectWeekly);
+          const isPaid = Boolean(receivedDate);
+          const isOverdue = !isPaid && dueDate < today;
+
+          if (isPaid) {
+            paidCount++;
+          } else {
+            if (isOverdue) overdueCount++;
+            if (!nextDueDate || dueDate < nextDueDate) {
+              nextDueDate = dueDate;
+            }
+          }
+
+          const rowObj = {
+            index: i,
+            dueDate,
+            amount: installmentAmount,
+            receivedDate,
+            status: isPaid ? "paid" : isOverdue ? "overdue" : "pending"
+          };
+          if (!isPaid && !nextOpenRow) {
+            nextOpenRow = rowObj;
+          }
+          rows.push(rowObj);
+        }
+
+        const paidAmount = paidCount * installmentAmount;
+        const remainingAmount = Math.max(0, totalContract - paidAmount);
+        const remainingCount = Math.max(0, totalInstallments - paidCount);
+        const progressPct = totalContract > 0 ? Math.min(100, (paidAmount / totalContract) * 100) : 0;
+        const isCompleted = paidCount >= totalInstallments;
+
+        return {
+          mode,
+          isDirectWeekly,
+          unitSingular: mode === "weekly" ? "semana" : "mês",
+          unitPlural: mode === "weekly" ? "semanas" : "meses",
+          planLabel: mode === "weekly" ? "Semanal" : "Mensal",
+          totalInstallments,
+          installmentAmount,
+          monthlyEquivalent,
+          totalContract,
+          paidCount,
+          remainingCount,
+          paidAmount,
+          remainingAmount,
+          progressPct,
+          overdueCount,
+          nextDueDate,
+          nextOpenRow,
+          nextOpenIndex: nextOpenRow ? nextOpenRow.index : null,
+          isCompleted,
+          rows
+        };
+      };
+
+      // ==================== FIREBASE AUTH + FIRESTORE REALTIME ====================
+      const setDbBadge = (ok, label, bannerMsg = null) => {
+        const badge = document.getElementById("db-status-badge");
+        const dot = document.getElementById("db-status-dot");
+        const text = document.getElementById("db-status-text");
+        const banner = document.getElementById("fallback-banner");
+        const msgEl = document.getElementById("fallback-banner-msg");
+
+        if (ok) {
+          badge.className = "inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200";
+          dot.className = "w-2 h-2 rounded-full bg-emerald-500 shrink-0";
+          text.textContent = label || "Tempo Real";
+          banner.classList.add("hidden");
+        } else {
+          badge.className = "inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200";
+          dot.className = "w-2 h-2 rounded-full bg-rose-500 shrink-0";
+          text.textContent = label || "Erro";
+          if (bannerMsg) {
+            msgEl.textContent = bannerMsg;
+            banner.classList.remove("hidden");
           }
         }
-
-        const rowObj = {
-          index: i,
-          dueDate,
-          amount: installmentAmount,
-          receivedDate,
-          status: isPaid ? "paid" : isOverdue ? "overdue" : "pending"
-        };
-        if (!isPaid && !nextOpenRow) {
-          nextOpenRow = rowObj;
-        }
-        rows.push(rowObj);
-      }
-
-      const paidAmount = paidCount * installmentAmount;
-      const remainingAmount = Math.max(0, totalContract - paidAmount);
-      const remainingCount = Math.max(0, totalInstallments - paidCount);
-      const progressPct = totalContract > 0 ? Math.min(100, (paidAmount / totalContract) * 100) : 0;
-      const isCompleted = paidCount >= totalInstallments;
-
-      return {
-        mode,
-        isDirectWeekly,
-        unitSingular: mode === "weekly" ? "semana" : "mês",
-        unitPlural: mode === "weekly" ? "semanas" : "meses",
-        planLabel: mode === "weekly" ? "Semanal" : "Mensal",
-        totalInstallments,
-        installmentAmount,
-        monthlyEquivalent,
-        totalContract,
-        paidCount,
-        remainingCount,
-        paidAmount,
-        remainingAmount,
-        progressPct,
-        overdueCount,
-        nextDueDate,
-        nextOpenRow,
-        nextOpenIndex: nextOpenRow ? nextOpenRow.index : null,
-        isCompleted,
-        rows
       };
-    };
 
-    // ==================== FIREBASE + FALLBACK LOCAL ====================
-    const setDbStatusUI = (mode, customMsg) => {
-      state.dbMode = mode;
-      const badge = document.getElementById("db-status-badge");
-      const dot = document.getElementById("db-status-dot");
-      const text = document.getElementById("db-status-text");
-      const banner = document.getElementById("fallback-banner");
-      const bannerMsg = document.getElementById("fallback-banner-msg");
-
-      if (mode === "firebase") {
-        badge.className = "inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200";
-        dot.className = "w-2 h-2 rounded-full bg-emerald-500 shrink-0";
-        text.textContent = "Firebase OK";
-        banner.classList.add("hidden");
-      } else if (mode === "local") {
-        badge.className = "inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200";
-        dot.className = "w-2 h-2 rounded-full bg-amber-500 shrink-0";
-        text.textContent = "Modo Local";
-        if (customMsg) bannerMsg.textContent = customMsg;
-        banner.classList.remove("hidden");
-      } else {
-        badge.className = "inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200";
-        dot.className = "w-2 h-2 rounded-full bg-slate-400 animate-pulse shrink-0";
-        text.textContent = "Conectando...";
-      }
-    };
-
-    const switchToLocalMode = (reason) => {
-      if (state.unsubscribeSnapshot) {
-        try { state.unsubscribeSnapshot(); } catch (e) {}
-        state.unsubscribeSnapshot = null;
-      }
-      state.isLoading = false;
-      setDbStatusUI("local", reason);
-      state.vehicles = loadLocal();
-      renderApp();
-    };
-
-    const initFirebase = async () => {
-      state.isLoading = true;
-      setDbStatusUI("connecting");
-      renderApp();
-
-      let settled = false;
-      const fallbackTimer = setTimeout(() => {
-        if (!settled && state.dbMode === "connecting") {
-          settled = true;
-          switchToLocalMode("Tempo de conexão com o Firestore excedido. Usando armazenamento local neste navegador.");
+      const stopRealtimeListener = () => {
+        if (state.unsubscribeSnapshot) {
+          try { state.unsubscribeSnapshot(); } catch (e) {}
+          state.unsubscribeSnapshot = null;
         }
-      }, 6000);
+      };
 
-      try {
-        const [{ initializeApp }, firestoreMod] = await Promise.all([
-          import("https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js"),
-          import("https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js")
-        ]);
+      const startRealtimeListener = () => {
+        if (!db || !fsApi || !state.user) return;
+        stopRealtimeListener();
+        state.isLoadingData = true;
+        renderApp();
 
-        fsApi = firestoreMod;
-        const app = initializeApp(firebaseConfig);
-        db = fsApi.getFirestore(app);
-        const q = fsApi.query(
-          fsApi.collection(db, COLLECTION_NAME),
-          fsApi.orderBy("createdAt", "desc")
-        );
-
+        // Escuta a coleção inteira em tempo real (não omite documentos sem createdAt)
+        const colRef = fsApi.collection(db, COLLECTION_NAME);
         state.unsubscribeSnapshot = fsApi.onSnapshot(
-          q,
+          colRef,
           (snapshot) => {
-            clearTimeout(fallbackTimer);
-            settled = true;
-            state.isLoading = false;
-            setDbStatusUI("firebase");
-            state.vehicles = snapshot.docs.map((docSnap) => ({
+            state.isLoadingData = false;
+            setDbBadge(true, "Tempo Real");
+            const list = snapshot.docs.map((docSnap) => ({
               id: docSnap.id,
               ...docSnap.data()
             }));
-            saveLocal();
+            // Ordena do mais recente para o mais antigo no cliente
+            list.sort((a, b) => {
+              const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : Number(a.createdAt) || 0;
+              const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : Number(b.createdAt) || 0;
+              return tb - ta;
+            });
+            state.vehicles = list;
             renderApp();
           },
           (error) => {
-            clearTimeout(fallbackTimer);
-            settled = true;
+            state.isLoadingData = false;
             const msg =
               error?.code === "permission-denied"
-                ? "Firestore retornou permissão negada (verifique as regras do projeto locacao-rafa). Operando em modo local."
-                : "Não foi possível conectar ao Firebase Firestore agora. Operando em modo local.";
-            switchToLocalMode(msg);
+                ? "Permissão negada no Firestore. Verifique se as regras do Firebase permitem acesso ao usuário autenticado."
+                : "Erro ao sincronizar em tempo real com o Firebase. Verifique sua internet.";
+            setDbBadge(false, "Sem Acesso", msg);
+            renderApp();
           }
         );
-      } catch (err) {
-        clearTimeout(fallbackTimer);
-        settled = true;
-        switchToLocalMode("Firebase indisponível neste ambiente. Operando em modo local.");
-      }
-    };
-
-    // ==================== CRUD DE VEÍCULOS E PAGAMENTOS ====================
-    const createVehicle = async (payload) => {
-      const record = {
-        name: payload.name.trim(),
-        plate: payload.plate.trim().toUpperCase(),
-        clientName: payload.clientName.trim(),
-        installmentValue: Number(payload.installmentValue),
-        installmentCount: parseInt(payload.installmentCount, 10),
-        paymentDate: payload.paymentDate,
-        preferredMode: payload.preferredMode === "weekly" ? "weekly" : "monthly",
-        unitMode: "direct",
-        payments: {}
       };
 
-      if (state.dbMode === "firebase" && db && fsApi) {
-        await fsApi.addDoc(fsApi.collection(db, COLLECTION_NAME), {
-          ...record,
-          createdAt: fsApi.serverTimestamp()
-        });
-      } else {
-        const localRecord = {
-          id: "loc_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
-          ...record,
-          createdAt: Date.now()
-        };
-        state.vehicles.unshift(localRecord);
-        saveLocal();
+      const updateAuthScreen = () => {
+        const authLoading = document.getElementById("view-auth-loading");
+        const viewLogin = document.getElementById("view-login");
+        const appShell = document.getElementById("app-shell");
+
+        if (!state.authReady) {
+          authLoading.classList.remove("hidden");
+          viewLogin.classList.add("hidden");
+          appShell.classList.add("hidden");
+          return;
+        }
+
+        authLoading.classList.add("hidden");
+
+        if (!state.user) {
+          appShell.classList.add("hidden");
+          viewLogin.classList.remove("hidden");
+          if (window.lucide) window.lucide.createIcons();
+          return;
+        }
+
+        viewLogin.classList.add("hidden");
+        appShell.classList.remove("hidden");
+        const emailLabel = document.getElementById("header-user-email");
+        if (emailLabel && state.user.email) {
+          emailLabel.textContent = state.user.email;
+        }
         renderApp();
-      }
-    };
-
-    const updateVehicle = async (vehicleId, payload) => {
-      const updates = {
-        name: payload.name.trim(),
-        plate: payload.plate.trim().toUpperCase(),
-        clientName: payload.clientName.trim(),
-        installmentValue: Number(payload.installmentValue),
-        installmentCount: parseInt(payload.installmentCount, 10),
-        paymentDate: payload.paymentDate,
-        preferredMode: payload.preferredMode === "weekly" ? "weekly" : "monthly",
-        unitMode: "direct"
       };
 
-      if (state.dbMode === "firebase" && db && fsApi) {
-        await fsApi.updateDoc(fsApi.doc(db, COLLECTION_NAME, vehicleId), updates);
-      } else {
-        const idx = state.vehicles.findIndex((v) => v.id === vehicleId);
-        if (idx !== -1) {
-          state.vehicles[idx] = { ...state.vehicles[idx], ...updates };
-          saveLocal();
-          renderApp();
-        }
-      }
-    };
+      const initFirebase = async () => {
+        try {
+          const [{ initializeApp }, firestoreMod, authMod] = await Promise.all([
+            import("https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js"),
+            import("https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js"),
+            import("https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js")
+          ]);
 
-    const removeVehicle = async (vehicleId) => {
-      if (state.dbMode === "firebase" && db && fsApi) {
+          fsApi = firestoreMod;
+          authApi = authMod;
+          const app = initializeApp(firebaseConfig);
+          db = fsApi.getFirestore(app);
+          auth = authApi.getAuth(app);
+
+          try {
+            await authApi.setPersistence(auth, authApi.browserLocalPersistence);
+          } catch (e) {}
+
+          authApi.onAuthStateChanged(auth, (user) => {
+            state.user = user || null;
+            state.authReady = true;
+            if (user) {
+              updateAuthScreen();
+              startRealtimeListener();
+            } else {
+              stopRealtimeListener();
+              state.vehicles = [];
+              state.selectedVehicleId = null;
+              state.isLoadingData = false;
+              updateAuthScreen();
+            }
+          });
+        } catch (err) {
+          state.authReady = true;
+          state.user = null;
+          updateAuthScreen();
+          showLoginError("Serviço de autenticação Firebase indisponível neste ambiente.");
+        }
+      };
+
+      // ==================== CRUD PROTEGIDO (SOMENTE AUTENTICADO + VALIDADO) ====================
+      const requireAuth = () => {
+        if (!state.user || !db || !fsApi) {
+          throw new Error("Sessão expirada. Faça login novamente.");
+        }
+      };
+
+      const createVehicle = async (rawPayload) => {
+        requireAuth();
+        const check = validateVehiclePayload(rawPayload);
+        if (!check.ok) throw new Error(check.error);
+
+        await fsApi.addDoc(fsApi.collection(db, COLLECTION_NAME), {
+          ...check.data,
+          payments: {},
+          ownerUid: state.user.uid,
+          createdAt: fsApi.serverTimestamp(),
+          updatedAt: fsApi.serverTimestamp()
+        });
+      };
+
+      const updateVehicle = async (vehicleId, rawPayload) => {
+        requireAuth();
+        if (!vehicleId || typeof vehicleId !== "string") {
+          throw new Error("Identificador do veículo inválido.");
+        }
+        const existing = state.vehicles.find((v) => v.id === vehicleId);
+        if (!existing) throw new Error("Veículo não encontrado.");
+
+        const check = validateVehiclePayload(rawPayload);
+        if (!check.ok) throw new Error(check.error);
+
+        // Proteção extra: garante que nenhum campo obrigatório seja sobrescrito por vazio
+        const safeUpdates = {
+          name: check.data.name || existing.name,
+          plate: check.data.plate || existing.plate,
+          clientName: check.data.clientName || existing.clientName,
+          installmentValue: check.data.installmentValue || existing.installmentValue,
+          installmentCount: check.data.installmentCount || existing.installmentCount,
+          paymentDate: check.data.paymentDate || existing.paymentDate,
+          preferredMode: check.data.preferredMode || existing.preferredMode,
+          unitMode: "direct",
+          updatedAt: fsApi.serverTimestamp()
+        };
+
+        await fsApi.updateDoc(fsApi.doc(db, COLLECTION_NAME, vehicleId), safeUpdates);
+      };
+
+      const removeVehicle = async (vehicleId) => {
+        requireAuth();
+        if (!vehicleId || typeof vehicleId !== "string") return;
         await fsApi.deleteDoc(fsApi.doc(db, COLLECTION_NAME, vehicleId));
-      } else {
-        state.vehicles = state.vehicles.filter((v) => v.id !== vehicleId);
-        saveLocal();
-      }
-      if (state.selectedVehicleId === vehicleId) {
-        state.selectedVehicleId = null;
-      }
-      renderApp();
-    };
-
-    const saveInstallmentPayment = async (target, receivedDate) => {
-      const vehicle = state.vehicles.find((v) => v.id === target.vehicleId);
-      if (!vehicle) return;
-
-      const updatedPayments = { ...(vehicle.payments || {}) };
-      const updatedLegacy = { ...(vehicle.weeklyPayments || {}) };
-      const key = `p_${target.index}`;
-
-      if (receivedDate) {
-        updatedPayments[key] = receivedDate;
-      } else {
-        delete updatedPayments[key];
-        // Também limpa eventual registro legado correspondente
-        if (target.mode === "monthly") {
-          for (let w = 1; w <= 4; w++) delete updatedLegacy[`m${target.index}_w${w}`];
-        } else {
-          const m = Math.floor((target.index - 1) / 4) + 1;
-          const w = ((target.index - 1) % 4) + 1;
-          delete updatedLegacy[`m${m}_w${w}`];
+        if (state.selectedVehicleId === vehicleId) {
+          state.selectedVehicleId = null;
         }
-      }
+      };
 
-      if (state.dbMode === "firebase" && db && fsApi) {
+      const saveInstallmentPayment = async (target, receivedDate) => {
+        requireAuth();
+        const vehicle = state.vehicles.find((v) => v.id === target.vehicleId);
+        if (!vehicle) throw new Error("Veículo não encontrado.");
+
+        if (receivedDate !== null && !isValidISODate(receivedDate)) {
+          throw new Error("Informe uma data de recebimento válida.");
+        }
+
+        const updatedPayments = { ...(vehicle.payments || {}) };
+        const updatedLegacy = { ...(vehicle.weeklyPayments || {}) };
+        const key = `p_${target.index}`;
+
+        if (receivedDate) {
+          updatedPayments[key] = receivedDate;
+        } else {
+          delete updatedPayments[key];
+          if (target.mode === "monthly") {
+            for (let w = 1; w <= 4; w++) delete updatedLegacy[`m${target.index}_w${w}`];
+          } else {
+            const m = Math.floor((target.index - 1) / 4) + 1;
+            const w = ((target.index - 1) % 4) + 1;
+            delete updatedLegacy[`m${m}_w${w}`];
+          }
+        }
+
         await fsApi.updateDoc(fsApi.doc(db, COLLECTION_NAME, vehicle.id), {
           payments: updatedPayments,
-          weeklyPayments: updatedLegacy
+          weeklyPayments: updatedLegacy,
+          updatedAt: fsApi.serverTimestamp()
         });
-      } else {
-        vehicle.payments = updatedPayments;
-        vehicle.weeklyPayments = updatedLegacy;
-        saveLocal();
-        renderApp();
-      }
-    };
+      };
 
-    // ==================== RENDERIZAÇÃO DA TELA INICIAL ====================
-    const renderHome = () => {
-      const grid = document.getElementById("vehicles-grid");
-      const emptyState = document.getElementById("empty-state");
-      const loadingState = document.getElementById("loading-state");
+      // ==================== RENDERIZAÇÃO DA TELA INICIAL ====================
+      const renderHome = () => {
+        const grid = document.getElementById("vehicles-grid");
+        const emptyState = document.getElementById("empty-state");
+        const loadingState = document.getElementById("loading-state");
 
-      if (state.isLoading) {
-        loadingState.classList.remove("hidden");
-        grid.classList.add("hidden");
+        if (state.isLoadingData) {
+          loadingState.classList.remove("hidden");
+          grid.classList.add("hidden");
+          emptyState.classList.add("hidden");
+          return;
+        }
+
+        loadingState.classList.add("hidden");
+
+        let totalContractAll = 0;
+        let totalReceivedAll = 0;
+        let totalMonthlyExpected = 0;
+        let completedCount = 0;
+
+        const enriched = state.vehicles.map((v) => {
+          const metrics = computeVehicleMetrics(v);
+          totalContractAll += metrics.totalContract;
+          totalReceivedAll += metrics.paidAmount;
+          if (!metrics.isCompleted) totalMonthlyExpected += metrics.monthlyEquivalent;
+          if (metrics.isCompleted) completedCount++;
+          return { vehicle: v, metrics };
+        });
+
+        const totalRemainingAll = Math.max(0, totalContractAll - totalReceivedAll);
+        const overallPct = totalContractAll > 0 ? (totalReceivedAll / totalContractAll) * 100 : 0;
+
+        document.getElementById("kpi-total-vehicles").textContent = String(state.vehicles.length);
+        document.getElementById("kpi-vehicles-sub").textContent =
+          completedCount === 1 ? "1 contrato quitado" : `${completedCount} contratos quitados`;
+        document.getElementById("kpi-total-received").textContent = formatBRL(totalReceivedAll);
+        document.getElementById("kpi-received-pct").textContent = `${overallPct.toFixed(1)}% do contratado`;
+        document.getElementById("kpi-total-remaining").textContent = formatBRL(totalRemainingAll);
+        document.getElementById("kpi-contract-total").textContent = `Total: ${formatBRL(totalContractAll)}`;
+        document.getElementById("kpi-monthly-expected").textContent = formatBRL(totalMonthlyExpected);
+        document.getElementById("kpi-weekly-expected").textContent = "Previsão contratos ativos";
+
+        const q = state.searchQuery.trim().toLowerCase();
+        const filtered = enriched.filter(({ vehicle, metrics }) => {
+          const matchesText =
+            !q ||
+            String(vehicle.name || "").toLowerCase().includes(q) ||
+            String(vehicle.plate || "").toLowerCase().includes(q) ||
+            String(vehicle.clientName || "").toLowerCase().includes(q);
+          if (!matchesText) return false;
+
+          if (state.statusFilter === "completed") return metrics.isCompleted;
+          if (state.statusFilter === "overdue") return !metrics.isCompleted && metrics.overdueCount > 0;
+          if (state.statusFilter === "active") return !metrics.isCompleted;
+          return true;
+        });
+
+        if (state.vehicles.length === 0) {
+          grid.innerHTML = "";
+          grid.classList.add("hidden");
+          emptyState.classList.remove("hidden");
+          if (window.lucide) window.lucide.createIcons();
+          return;
+        }
+
         emptyState.classList.add("hidden");
-        return;
-      }
+        grid.classList.remove("hidden");
 
-      loadingState.classList.add("hidden");
+        if (filtered.length === 0) {
+          grid.innerHTML = `
+            <div class="col-span-full bg-white border border-slate-200 rounded-xl p-8 text-center text-sm text-slate-500">
+              Nenhum veículo encontrado para os filtros aplicados.
+            </div>
+          `;
+          return;
+        }
 
-      let totalContractAll = 0;
-      let totalReceivedAll = 0;
-      let totalMonthlyExpected = 0;
-      let completedCount = 0;
+        grid.innerHTML = filtered
+          .map(({ vehicle, metrics }) => {
+            const statusBadge = metrics.isCompleted
+              ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Quitado</span>`
+              : metrics.overdueCount > 0
+              ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">${metrics.overdueCount} em atraso</span>`
+              : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Em dia</span>`;
 
-      const enriched = state.vehicles.map((v) => {
-        const metrics = computeVehicleMetrics(v);
-        totalContractAll += metrics.totalContract;
-        totalReceivedAll += metrics.paidAmount;
-        if (!metrics.isCompleted) totalMonthlyExpected += metrics.monthlyEquivalent;
-        if (metrics.isCompleted) completedCount++;
-        return { vehicle: v, metrics };
-      });
+            const modeTag =
+              metrics.mode === "weekly"
+                ? `<span class="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">Cliente Semanal</span>`
+                : `<span class="text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">Cliente Mensal</span>`;
 
-      const totalRemainingAll = Math.max(0, totalContractAll - totalReceivedAll);
-      const overallPct = totalContractAll > 0 ? (totalReceivedAll / totalContractAll) * 100 : 0;
+            const topAccent = metrics.isCompleted
+              ? "border-t-emerald-500"
+              : metrics.overdueCount > 0
+              ? "border-t-rose-500"
+              : "border-t-indigo-600";
 
-      document.getElementById("kpi-total-vehicles").textContent = String(state.vehicles.length);
-      document.getElementById("kpi-vehicles-sub").textContent =
-        completedCount === 1 ? "1 contrato quitado" : `${completedCount} contratos quitados`;
-      document.getElementById("kpi-total-received").textContent = formatBRL(totalReceivedAll);
-      document.getElementById("kpi-received-pct").textContent = `${overallPct.toFixed(1)}% do contratado`;
-      document.getElementById("kpi-total-remaining").textContent = formatBRL(totalRemainingAll);
-      document.getElementById("kpi-contract-total").textContent = `Total: ${formatBRL(totalContractAll)}`;
-      document.getElementById("kpi-monthly-expected").textContent = formatBRL(totalMonthlyExpected);
-      document.getElementById("kpi-weekly-expected").textContent = "Previsão contratos ativos";
-
-      const q = state.searchQuery.trim().toLowerCase();
-      const filtered = enriched.filter(({ vehicle, metrics }) => {
-        const matchesText =
-          !q ||
-          vehicle.name.toLowerCase().includes(q) ||
-          vehicle.plate.toLowerCase().includes(q) ||
-          vehicle.clientName.toLowerCase().includes(q);
-        if (!matchesText) return false;
-
-        if (state.statusFilter === "completed") return metrics.isCompleted;
-        if (state.statusFilter === "overdue") return !metrics.isCompleted && metrics.overdueCount > 0;
-        if (state.statusFilter === "active") return !metrics.isCompleted;
-        return true;
-      });
-
-      if (state.vehicles.length === 0) {
-        grid.innerHTML = "";
-        grid.classList.add("hidden");
-        emptyState.classList.remove("hidden");
-        if (window.lucide) window.lucide.createIcons();
-        return;
-      }
-
-      emptyState.classList.add("hidden");
-      grid.classList.remove("hidden");
-
-      if (filtered.length === 0) {
-        grid.innerHTML = `
-          <div class="col-span-full bg-white border border-slate-200 rounded-xl p-8 text-center text-sm text-slate-500">
-            Nenhum veículo encontrado para os filtros aplicados.
-          </div>
-        `;
-        return;
-      }
-
-      grid.innerHTML = filtered
-        .map(({ vehicle, metrics }) => {
-          const statusBadge = metrics.isCompleted
-            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Quitado</span>`
-            : metrics.overdueCount > 0
-            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">${metrics.overdueCount} em atraso</span>`
-            : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">Em dia</span>`;
-
-          const modeTag =
-            metrics.mode === "weekly"
-              ? `<span class="text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">Cliente Semanal</span>`
-              : `<span class="text-[11px] font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md">Cliente Mensal</span>`;
-
-          const topAccent = metrics.isCompleted
-            ? "border-t-emerald-500"
-            : metrics.overdueCount > 0
-            ? "border-t-rose-500"
-            : "border-t-indigo-600";
-
-          return `
-            <article
-              data-vehicle-card="${escapeHtml(vehicle.id)}"
-              class="group bg-white border border-slate-300 border-t-4 ${topAccent} shadow-md shadow-slate-300/60 hover:border-indigo-500 hover:shadow-lg active:scale-[0.99] rounded-2xl p-4 sm:p-5 cursor-pointer transition-all flex flex-col justify-between gap-3.5"
-            >
-              <div class="space-y-3">
-                <div class="flex items-start justify-between gap-2">
-                  <div class="min-w-0">
-                    <h3 class="text-base font-bold text-slate-900 group-hover:text-indigo-700 transition-colors truncate">${escapeHtml(vehicle.name)}</h3>
-                    <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1 truncate">
-                      <i data-lucide="user" class="w-3.5 h-3.5 shrink-0"></i>
-                      <span class="truncate">${escapeHtml(vehicle.clientName)}</span>
-                    </p>
+            return `
+              <article
+                data-vehicle-card="${escapeHtml(vehicle.id)}"
+                class="group bg-white border border-slate-300 border-t-4 ${topAccent} shadow-md shadow-slate-300/60 hover:border-indigo-500 hover:shadow-lg active:scale-[0.99] rounded-2xl p-4 sm:p-5 cursor-pointer transition-all flex flex-col justify-between gap-3.5"
+              >
+                <div class="space-y-3">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <h3 class="text-base font-bold text-slate-900 group-hover:text-indigo-700 transition-colors truncate">${escapeHtml(vehicle.name)}</h3>
+                      <p class="text-xs text-slate-500 mt-0.5 flex items-center gap-1 truncate">
+                        <i data-lucide="user" class="w-3.5 h-3.5 shrink-0"></i>
+                        <span class="truncate">${escapeHtml(vehicle.clientName)}</span>
+                      </p>
+                    </div>
+                    <span class="plate-badge shrink-0">${escapeHtml(vehicle.plate)}</span>
                   </div>
-                  <span class="plate-badge shrink-0">${escapeHtml(vehicle.plate)}</span>
+
+                  <div class="flex items-center justify-between gap-2">
+                    ${statusBadge}
+                    ${modeTag}
+                  </div>
+
+                  <div class="flex items-center justify-between bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <div>
+                      <p class="text-[11px] text-slate-500">Parcela ${metrics.planLabel}</p>
+                      <p class="text-base font-bold text-slate-900">${formatBRL(metrics.installmentAmount)}</p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-[11px] text-slate-500">Recebido</p>
+                      <p class="text-sm font-bold text-emerald-600">${formatBRL(metrics.paidAmount)}</p>
+                    </div>
+                  </div>
                 </div>
 
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-slate-600 font-medium">${metrics.paidCount}/${metrics.totalInstallments} ${metrics.unitPlural}</span>
+                    <span class="font-bold text-slate-900">${metrics.progressPct.toFixed(1)}%</span>
+                  </div>
+                  <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full ${metrics.isCompleted ? "bg-emerald-500" : "bg-indigo-600"} rounded-full transition-all" style="width: ${metrics.progressPct.toFixed(1)}%"></div>
+                  </div>
+                  <div class="flex items-center justify-between text-xs text-slate-500 pt-1">
+                    <span>Próx.: <strong class="text-slate-700">${metrics.nextDueDate ? formatDateBR(metrics.nextDueDate) : "Quitado"}</strong></span>
+                    <span class="inline-flex items-center gap-0.5 text-indigo-600 font-semibold">
+                      Abrir <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                    </span>
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+
+        if (window.lucide) window.lucide.createIcons();
+      };
+
+      // ==================== RENDERIZAÇÃO DA TELA DEDICADA DO VEÍCULO ====================
+      const renderDetailCharts = (metrics) => {
+        const doughnutCanvas = document.getElementById("chart-progress-doughnut");
+        const barCanvas = document.getElementById("chart-progress-bar");
+        if (!doughnutCanvas || !barCanvas || typeof Chart === "undefined") return;
+
+        if (state.doughnutChart) {
+          state.doughnutChart.destroy();
+          state.doughnutChart = null;
+        }
+        if (state.barChart) {
+          state.barChart.destroy();
+          state.barChart = null;
+        }
+
+        document.getElementById("doughnut-center-pct").textContent = `${metrics.progressPct.toFixed(1)}%`;
+
+        state.doughnutChart = new Chart(doughnutCanvas.getContext("2d"), {
+          type: "doughnut",
+          data: {
+            labels: ["Recebido", "Saldo Restante"],
+            datasets: [
+              {
+                data: [
+                  Number(metrics.paidAmount.toFixed(2)),
+                  Number(metrics.remainingAmount.toFixed(2))
+                ],
+                backgroundColor: ["#10b981", "#e2e8f0"],
+                borderWidth: 0,
+                hoverOffset: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 250 },
+            cutout: "74%",
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { usePointStyle: true, padding: 14, font: { family: "Inter", size: 12 } }
+              },
+              tooltip: {
+                callbacks: { label: (ctx) => `${ctx.label}: ${formatBRL(ctx.parsed)}` }
+              }
+            }
+          }
+        });
+
+        const subtitle = document.getElementById("bar-chart-subtitle");
+        subtitle.textContent =
+          metrics.mode === "weekly"
+            ? "Evolução das parcelas semanais recebidas, atrasadas e pendentes"
+            : "Evolução das parcelas mensais recebidas, atrasadas e pendentes";
+
+        const rowsToPlot = metrics.rows.slice(0, 48);
+        const labels = rowsToPlot.map((r) => (metrics.mode === "weekly" ? `Sem ${r.index}` : `Mês ${r.index}`));
+        const paidData = rowsToPlot.map((r) => (r.status === "paid" ? Number(r.amount.toFixed(2)) : 0));
+        const overdueData = rowsToPlot.map((r) => (r.status === "overdue" ? Number(r.amount.toFixed(2)) : 0));
+        const pendingData = rowsToPlot.map((r) => (r.status === "pending" ? Number(r.amount.toFixed(2)) : 0));
+
+        state.barChart = new Chart(barCanvas.getContext("2d"), {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              { label: "Recebido", data: paidData, backgroundColor: "#10b981", borderRadius: 4 },
+              { label: "Atrasado", data: overdueData, backgroundColor: "#fb7185", borderRadius: 4 },
+              { label: "Pendente", data: pendingData, backgroundColor: "#e2e8f0", borderRadius: 4 }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 250 },
+            scales: {
+              x: {
+                stacked: true,
+                grid: { display: false },
+                ticks: { font: { family: "Inter", size: 10 }, maxRotation: 0, autoSkip: true }
+              },
+              y: {
+                stacked: true,
+                beginAtZero: true,
+                ticks: { font: { family: "Inter", size: 10 }, callback: (val) => `R$ ${val}` }
+              }
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatBRL(ctx.parsed.y)}` }
+              }
+            }
+          }
+        });
+      };
+
+      const renderDetailInstallments = (metrics) => {
+        const tbody = document.getElementById("installments-tbody");
+        const mobileList = document.getElementById("installments-mobile-list");
+        const spotlight = document.getElementById("next-installment-spotlight");
+        const filter = state.installmentFilter;
+        const itemPrefix = metrics.mode === "weekly" ? "Semana" : "Parcela";
+
+        if (metrics.nextOpenRow) {
+          const nr = metrics.nextOpenRow;
+          const isLate = nr.status === "overdue";
+          const cardGradient = isLate
+            ? "bg-gradient-to-r from-rose-600 to-rose-700 border-rose-500 shadow-rose-200"
+            : "bg-gradient-to-r from-indigo-600 to-indigo-700 border-indigo-500 shadow-indigo-200";
+          const pillText = isLate ? "PRÓXIMA EM ABERTO · EM ATRASO" : "PRÓXIMA PARCELA EM ABERTO";
+          const btnClass = isLate
+            ? "bg-white text-rose-700 hover:bg-rose-50 active:bg-rose-100"
+            : "bg-white text-indigo-700 hover:bg-indigo-50 active:bg-indigo-100";
+
+          spotlight.className = `w-full rounded-2xl border ${cardGradient} text-white p-4 sm:p-5 shadow-lg`;
+          spotlight.innerHTML = `
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="space-y-1.5">
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-[11px] font-bold tracking-wide">
+                  <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
+                  <span>${pillText}</span>
+                </div>
+                <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h3 class="text-lg sm:text-xl font-extrabold">${itemPrefix} ${nr.index} / ${metrics.totalInstallments}</h3>
+                  <span class="text-sm sm:text-base font-bold text-white/95">${formatBRL(nr.amount)}</span>
+                </div>
+                <p class="text-xs sm:text-sm text-white/85 flex items-center gap-1.5">
+                  <i data-lucide="calendar" class="w-4 h-4 shrink-0"></i>
+                  Vencimento: <strong class="text-white">${formatDateBR(nr.dueDate)}</strong>
+                </p>
+              </div>
+              <button type="button" data-action="pay-installment" data-index="${nr.index}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl ${btnClass} text-sm font-extrabold shadow-sm transition-colors shrink-0">
+                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                Baixar Agora
+              </button>
+            </div>
+          `;
+        } else {
+          spotlight.className = "hidden w-full";
+          spotlight.innerHTML = "";
+        }
+
+        const rows = metrics.rows.filter((r) => {
+          if (filter === "paid") return r.status === "paid";
+          if (filter === "pending") return r.status !== "paid";
+          return true;
+        });
+
+        if (rows.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500 text-sm">Nenhuma parcela encontrada neste filtro.</td></tr>`;
+          mobileList.innerHTML = `<div class="p-8 text-center text-slate-500 text-sm bg-white rounded-xl border border-slate-200">Nenhuma parcela encontrada neste filtro.</div>`;
+          if (window.lucide) window.lucide.createIcons();
+          return;
+        }
+
+        tbody.innerHTML = rows
+          .map((row) => {
+            const isNext = row.index === metrics.nextOpenIndex;
+            const nextPill = isNext
+              ? `<span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${row.status === "overdue" ? "bg-rose-600 text-white" : "bg-indigo-600 text-white"}">Próxima</span>`
+              : "";
+
+            const badgeHtml =
+              row.status === "paid"
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Recebida</span>`
+                : row.status === "overdue"
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Atrasada</span>`
+                : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">Pendente</span>`;
+
+            const actionBtn =
+              row.status === "paid"
+                ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold transition-colors">
+                     <i data-lucide="check" class="w-3.5 h-3.5"></i> Baixada (Editar)
+                   </button>`
+                : isNext
+                ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg ${row.status === "overdue" ? "bg-rose-600 hover:bg-rose-700" : "bg-indigo-600 hover:bg-indigo-700"} text-white text-xs font-bold shadow-sm transition-colors">
+                     <i data-lucide="check" class="w-3.5 h-3.5"></i> Baixar
+                   </button>`
+                : `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors">
+                     <i data-lucide="check" class="w-3.5 h-3.5"></i> Baixar
+                   </button>`;
+
+            const rowClass = isNext
+              ? row.status === "overdue"
+                ? "bg-rose-50/90 border-l-4 border-l-rose-600"
+                : "bg-indigo-50/90 border-l-4 border-l-indigo-600"
+              : row.status === "paid"
+              ? "bg-emerald-50/25"
+              : "hover:bg-slate-50";
+
+            return `
+              <tr class="${rowClass} transition-colors">
+                <td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">
+                  <span>${itemPrefix} ${row.index} / ${metrics.totalInstallments}</span>${nextPill}
+                </td>
+                <td class="py-3.5 px-4 ${isNext ? "font-bold text-slate-900" : "text-slate-700"} whitespace-nowrap">${formatDateBR(row.dueDate)}</td>
+                <td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">${formatBRL(row.amount)}</td>
+                <td class="py-3.5 px-4 whitespace-nowrap">${badgeHtml}</td>
+                <td class="py-3.5 px-4 text-slate-700 whitespace-nowrap">
+                  ${row.receivedDate ? `<span class="font-medium text-emerald-700">${formatDateBR(row.receivedDate)}</span>` : `<span class="text-slate-400">—</span>`}
+                </td>
+                <td class="py-3.5 px-4 text-right whitespace-nowrap">${actionBtn}</td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        mobileList.innerHTML = rows
+          .map((row) => {
+            const isNext = row.index === metrics.nextOpenIndex;
+            const isLate = row.status === "overdue";
+
+            const badgeHtml =
+              row.status === "paid"
+                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Recebida</span>`
+                : isLate
+                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-700 border border-rose-200">Atrasada</span>`
+                : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">Pendente</span>`;
+
+            const nextBanner = isNext
+              ? `<div class="-mx-4 -mt-4 mb-3 px-4 py-1.5 rounded-t-[10px] text-[11px] font-extrabold uppercase tracking-wider flex items-center gap-1.5 ${isLate ? "bg-rose-600 text-white" : "bg-indigo-600 text-white"}">
+                   <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
+                   <span>${isLate ? "Próxima em aberto · Atrasada" : "Próxima parcela em aberto"}</span>
+                 </div>`
+              : "";
+
+            const cardClass = isNext
+              ? isLate
+                ? "rounded-xl p-4 space-y-3 bg-rose-50/70 border-2 border-rose-500 shadow-md"
+                : "rounded-xl p-4 space-y-3 bg-indigo-50/70 border-2 border-indigo-500 shadow-md"
+              : row.status === "paid"
+              ? "rounded-xl p-4 space-y-3 bg-emerald-50/40 border border-emerald-200 shadow-sm"
+              : "rounded-xl p-4 space-y-3 bg-white border border-slate-300 shadow-sm";
+
+            const actionBtn =
+              row.status === "paid"
+                ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-emerald-50 active:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-colors">
+                     <i data-lucide="check" class="w-4 h-4"></i> Baixada · Editar Data
+                   </button>`
+                : isNext
+                ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg ${isLate ? "bg-rose-600 active:bg-rose-700" : "bg-indigo-600 active:bg-indigo-700"} text-white text-sm font-extrabold shadow-sm transition-colors">
+                     <i data-lucide="check" class="w-4 h-4"></i> Baixar
+                   </button>`
+                : `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-slate-800 active:bg-indigo-600 text-white text-sm font-semibold transition-colors">
+                     <i data-lucide="check" class="w-4 h-4"></i> Baixar
+                   </button>`;
+
+            return `
+              <div class="${cardClass}">
+                ${nextBanner}
                 <div class="flex items-center justify-between gap-2">
-                  ${statusBadge}
-                  ${modeTag}
+                  <span class="text-sm font-bold text-slate-900">${itemPrefix} ${row.index} / ${metrics.totalInstallments}</span>
+                  ${badgeHtml}
                 </div>
-
-                <!-- Mostra SOMENTE a parcela da modalidade escolhida -->
-                <div class="flex items-center justify-between bg-slate-50 rounded-lg p-3 border border-slate-100">
+                <div class="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <p class="text-[11px] text-slate-500">Parcela ${metrics.planLabel}</p>
-                    <p class="text-base font-bold text-slate-900">${formatBRL(metrics.installmentAmount)}</p>
+                    <span class="text-slate-500 block">Vencimento</span>
+                    <strong class="text-slate-900 text-sm">${formatDateBR(row.dueDate)}</strong>
                   </div>
                   <div class="text-right">
-                    <p class="text-[11px] text-slate-500">Recebido</p>
-                    <p class="text-sm font-bold text-emerald-600">${formatBRL(metrics.paidAmount)}</p>
+                    <span class="text-slate-500 block">Valor</span>
+                    <strong class="text-slate-900 text-sm">${formatBRL(row.amount)}</strong>
                   </div>
                 </div>
+                ${
+                  row.receivedDate
+                    ? `<div class="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-100/70 px-2.5 py-1.5 rounded-lg">
+                         <i data-lucide="calendar-check" class="w-3.5 h-3.5 shrink-0"></i>
+                         Recebido em ${formatDateBR(row.receivedDate)}
+                       </div>`
+                    : ""
+                }
+                <div>${actionBtn}</div>
               </div>
+            `;
+          })
+          .join("");
 
-              <div class="space-y-2 pt-2 border-t border-slate-100">
-                <div class="flex items-center justify-between text-xs">
-                  <span class="text-slate-600 font-medium">${metrics.paidCount}/${metrics.totalInstallments} ${metrics.unitPlural}</span>
-                  <span class="font-bold text-slate-900">${metrics.progressPct.toFixed(1)}%</span>
-                </div>
-                <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div class="h-full ${metrics.isCompleted ? "bg-emerald-500" : "bg-indigo-600"} rounded-full transition-all" style="width: ${metrics.progressPct.toFixed(1)}%"></div>
-                </div>
-                <div class="flex items-center justify-between text-xs text-slate-500 pt-1">
-                  <span>Próx.: <strong class="text-slate-700">${metrics.nextDueDate ? formatDateBR(metrics.nextDueDate) : "Quitado"}</strong></span>
-                  <span class="inline-flex items-center gap-0.5 text-indigo-600 font-semibold">
-                    Abrir <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-                  </span>
-                </div>
-              </div>
-            </article>
-          `;
-        })
-        .join("");
-
-      if (window.lucide) window.lucide.createIcons();
-    };
-
-    // ==================== RENDERIZAÇÃO DA TELA DEDICADA DO VEÍCULO ====================
-    const renderDetailCharts = (metrics) => {
-      const doughnutCanvas = document.getElementById("chart-progress-doughnut");
-      const barCanvas = document.getElementById("chart-progress-bar");
-      if (!doughnutCanvas || !barCanvas || typeof Chart === "undefined") return;
-
-      if (state.doughnutChart) {
-        state.doughnutChart.destroy();
-        state.doughnutChart = null;
-      }
-      if (state.barChart) {
-        state.barChart.destroy();
-        state.barChart = null;
-      }
-
-      document.getElementById("doughnut-center-pct").textContent = `${metrics.progressPct.toFixed(1)}%`;
-
-      state.doughnutChart = new Chart(doughnutCanvas.getContext("2d"), {
-        type: "doughnut",
-        data: {
-          labels: ["Recebido", "Saldo Restante"],
-          datasets: [
-            {
-              data: [
-                Number(metrics.paidAmount.toFixed(2)),
-                Number(metrics.remainingAmount.toFixed(2))
-              ],
-              backgroundColor: ["#10b981", "#e2e8f0"],
-              borderWidth: 0,
-              hoverOffset: 4
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: "74%",
-          plugins: {
-            legend: {
-              position: "bottom",
-              labels: {
-                usePointStyle: true,
-                padding: 14,
-                font: { family: "Inter", size: 12 }
-              }
-            },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => `${ctx.label}: ${formatBRL(ctx.parsed)}`
-              }
-            }
-          }
-        }
-      });
-
-      const subtitle = document.getElementById("bar-chart-subtitle");
-      subtitle.textContent =
-        metrics.mode === "weekly"
-          ? "Evolução das parcelas semanais recebidas, atrasadas e pendentes"
-          : "Evolução das parcelas mensais recebidas, atrasadas e pendentes";
-
-      const rowsToPlot = metrics.rows.slice(0, 48);
-      const labels = rowsToPlot.map((r) =>
-        metrics.mode === "weekly" ? `Sem ${r.index}` : `Mês ${r.index}`
-      );
-      const paidData = rowsToPlot.map((r) => (r.status === "paid" ? Number(r.amount.toFixed(2)) : 0));
-      const overdueData = rowsToPlot.map((r) => (r.status === "overdue" ? Number(r.amount.toFixed(2)) : 0));
-      const pendingData = rowsToPlot.map((r) => (r.status === "pending" ? Number(r.amount.toFixed(2)) : 0));
-
-      state.barChart = new Chart(barCanvas.getContext("2d"), {
-        type: "bar",
-        data: {
-          labels,
-          datasets: [
-            { label: "Recebido", data: paidData, backgroundColor: "#10b981", borderRadius: 4 },
-            { label: "Atrasado", data: overdueData, backgroundColor: "#fb7185", borderRadius: 4 },
-            { label: "Pendente", data: pendingData, backgroundColor: "#e2e8f0", borderRadius: 4 }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              stacked: true,
-              grid: { display: false },
-              ticks: { font: { family: "Inter", size: 10 }, maxRotation: 0, autoSkip: true }
-            },
-            y: {
-              stacked: true,
-              beginAtZero: true,
-              ticks: {
-                font: { family: "Inter", size: 10 },
-                callback: (val) => `R$ ${val}`
-              }
-            }
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => `${ctx.dataset.label}: ${formatBRL(ctx.parsed.y)}`
-              }
-            }
-          }
-        }
-      });
-    };
-
-    const renderDetailInstallments = (metrics) => {
-      const tbody = document.getElementById("installments-tbody");
-      const mobileList = document.getElementById("installments-mobile-list");
-      const spotlight = document.getElementById("next-installment-spotlight");
-      const filter = state.installmentFilter;
-      const itemPrefix = metrics.mode === "weekly" ? "Semana" : "Parcela";
-
-      // Card de Destaque da Próxima Parcela em Aberto
-      if (metrics.nextOpenRow) {
-        const nr = metrics.nextOpenRow;
-        const isLate = nr.status === "overdue";
-        const cardGradient = isLate
-          ? "bg-gradient-to-r from-rose-600 to-rose-700 border-rose-500 shadow-rose-200"
-          : "bg-gradient-to-r from-indigo-600 to-indigo-700 border-indigo-500 shadow-indigo-200";
-        const pillText = isLate ? "PRÓXIMA EM ABERTO · EM ATRASO" : "PRÓXIMA PARCELA EM ABERTO";
-        const btnClass = isLate
-          ? "bg-white text-rose-700 hover:bg-rose-50 active:bg-rose-100"
-          : "bg-white text-indigo-700 hover:bg-indigo-50 active:bg-indigo-100";
-
-        spotlight.className = `w-full rounded-2xl border ${cardGradient} text-white p-4 sm:p-5 shadow-lg`;
-        spotlight.innerHTML = `
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="space-y-1.5">
-              <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-[11px] font-bold tracking-wide">
-                <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
-                <span>${pillText}</span>
-              </div>
-              <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <h3 class="text-lg sm:text-xl font-extrabold">${itemPrefix} ${nr.index} / ${metrics.totalInstallments}</h3>
-                <span class="text-sm sm:text-base font-bold text-white/95">${formatBRL(nr.amount)}</span>
-              </div>
-              <p class="text-xs sm:text-sm text-white/85 flex items-center gap-1.5">
-                <i data-lucide="calendar" class="w-4 h-4 shrink-0"></i>
-                Vencimento: <strong class="text-white">${formatDateBR(nr.dueDate)}</strong>
-              </p>
-            </div>
-            <button type="button" data-action="pay-installment" data-index="${nr.index}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl ${btnClass} text-sm font-extrabold shadow-sm transition-colors shrink-0">
-              <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-              Baixar Agora
-            </button>
-          </div>
-        `;
-      } else {
-        spotlight.className = "hidden w-full";
-        spotlight.innerHTML = "";
-      }
-
-      const rows = metrics.rows.filter((r) => {
-        if (filter === "paid") return r.status === "paid";
-        if (filter === "pending") return r.status !== "paid";
-        return true;
-      });
-
-      if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500 text-sm">Nenhuma parcela encontrada neste filtro.</td></tr>`;
-        mobileList.innerHTML = `<div class="p-8 text-center text-slate-500 text-sm bg-white rounded-xl border border-slate-200">Nenhuma parcela encontrada neste filtro.</div>`;
         if (window.lucide) window.lucide.createIcons();
-        return;
-      }
+      };
 
-      // Desktop Table
-      tbody.innerHTML = rows
-        .map((row) => {
-          const isNext = row.index === metrics.nextOpenIndex;
-          const nextPill = isNext
-            ? `<span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${row.status === "overdue" ? "bg-rose-600 text-white" : "bg-indigo-600 text-white"}">Próxima</span>`
-            : "";
+      const renderDetail = () => {
+        const vehicle = state.vehicles.find((v) => v.id === state.selectedVehicleId);
+        if (!vehicle) {
+          state.selectedVehicleId = null;
+          renderApp();
+          return;
+        }
 
-          const badgeHtml =
-            row.status === "paid"
-              ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Recebida</span>`
-              : row.status === "overdue"
-              ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">Atrasada</span>`
-              : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">Pendente</span>`;
+        const metrics = computeVehicleMetrics(vehicle);
 
-          const actionBtn =
-            row.status === "paid"
-              ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold transition-colors">
-                   <i data-lucide="check" class="w-3.5 h-3.5"></i> Baixada (Editar)
-                 </button>`
-              : isNext
-              ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg ${row.status === "overdue" ? "bg-rose-600 hover:bg-rose-700" : "bg-indigo-600 hover:bg-indigo-700"} text-white text-xs font-bold shadow-sm transition-colors">
-                   <i data-lucide="check" class="w-3.5 h-3.5"></i> Baixar
-                 </button>`
-              : `<button type="button" data-action="pay-installment" data-index="${row.index}" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors">
-                   <i data-lucide="check" class="w-3.5 h-3.5"></i> Baixar
-                 </button>`;
+        document.getElementById("detail-vehicle-name").textContent = vehicle.name;
+        document.getElementById("detail-vehicle-plate").textContent = vehicle.plate;
+        document.getElementById("detail-client-name").textContent = vehicle.clientName;
+        document.getElementById("detail-start-date").textContent = formatDateBR(vehicle.paymentDate);
+        document.getElementById("detail-installment-summary").textContent = `${metrics.totalInstallments}x (${metrics.planLabel})`;
 
-          const rowClass = isNext
-            ? row.status === "overdue"
-              ? "bg-rose-50/90 border-l-4 border-l-rose-600"
-              : "bg-indigo-50/90 border-l-4 border-l-indigo-600"
-            : row.status === "paid"
-            ? "bg-emerald-50/25"
-            : "hover:bg-slate-50";
+        document.getElementById("detail-plan-value-label").textContent = `Parcela ${metrics.planLabel}`;
+        document.getElementById("detail-plan-value-amount").textContent = formatBRL(metrics.installmentAmount);
+        document.getElementById("detail-mode-badge").textContent = `Plano ${metrics.planLabel}`;
 
-          return `
-            <tr class="${rowClass} transition-colors">
-              <td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">
-                <span>${itemPrefix} ${row.index} / ${metrics.totalInstallments}</span>${nextPill}
-              </td>
-              <td class="py-3.5 px-4 ${isNext ? "font-bold text-slate-900" : "text-slate-700"} whitespace-nowrap">${formatDateBR(row.dueDate)}</td>
-              <td class="py-3.5 px-4 font-semibold text-slate-900 whitespace-nowrap">${formatBRL(row.amount)}</td>
-              <td class="py-3.5 px-4 whitespace-nowrap">${badgeHtml}</td>
-              <td class="py-3.5 px-4 text-slate-700 whitespace-nowrap">
-                ${row.receivedDate ? `<span class="font-medium text-emerald-700">${formatDateBR(row.receivedDate)}</span>` : `<span class="text-slate-400">—</span>`}
-              </td>
-              <td class="py-3.5 px-4 text-right whitespace-nowrap">${actionBtn}</td>
-            </tr>
-          `;
-        })
-        .join("");
+        document.getElementById("detail-progress-label").textContent = `${metrics.progressPct.toFixed(1)}% (${metrics.paidCount}/${metrics.totalInstallments} ${metrics.unitPlural})`;
+        document.getElementById("detail-progress-bar").style.width = `${metrics.progressPct.toFixed(1)}%`;
 
-      // Mobile Cards (cards individualizados com sombra + destaque forte na próxima em aberto)
-      mobileList.innerHTML = rows
-        .map((row) => {
-          const isNext = row.index === metrics.nextOpenIndex;
-          const isLate = row.status === "overdue";
+        document.getElementById("detail-kpi-total").textContent = formatBRL(metrics.totalContract);
+        document.getElementById("detail-kpi-total-sub").textContent = `${metrics.totalInstallments} ${metrics.unitPlural}`;
+        document.getElementById("detail-kpi-paid").textContent = formatBRL(metrics.paidAmount);
+        document.getElementById("detail-kpi-paid-sub").textContent = `${metrics.paidCount} de ${metrics.totalInstallments} pagas`;
+        document.getElementById("detail-kpi-remaining").textContent = formatBRL(metrics.remainingAmount);
+        document.getElementById("detail-kpi-remaining-sub").textContent = `${metrics.remainingCount} ${metrics.unitPlural} restantes`;
+        document.getElementById("detail-kpi-next-due").textContent = metrics.nextDueDate ? formatDateBR(metrics.nextDueDate) : "Quitado!";
+        document.getElementById("detail-kpi-overdue-sub").textContent =
+          metrics.overdueCount > 0
+            ? `${metrics.overdueCount} em atraso`
+            : metrics.isCompleted
+            ? "Contrato 100% quitado"
+            : "Pagamentos em dia";
+        document.getElementById("detail-kpi-overdue-sub").className =
+          metrics.overdueCount > 0 ? "text-[11px] sm:text-xs text-rose-600 font-semibold mt-0.5 truncate" : "text-[11px] sm:text-xs text-emerald-600 font-medium mt-0.5 truncate";
 
-          const badgeHtml =
-            row.status === "paid"
-              ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Recebida</span>`
-              : isLate
-              ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-700 border border-rose-200">Atrasada</span>`
-              : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">Pendente</span>`;
+        renderDetailCharts(metrics);
+        renderDetailInstallments(metrics);
+      };
 
-          const nextBanner = isNext
-            ? `<div class="-mx-4 -mt-4 mb-3 px-4 py-1.5 rounded-t-[10px] text-[11px] font-extrabold uppercase tracking-wider flex items-center gap-1.5 ${isLate ? "bg-rose-600 text-white" : "bg-indigo-600 text-white"}">
-                 <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
-                 <span>${isLate ? "Próxima em aberto · Atrasada" : "Próxima parcela em aberto"}</span>
-               </div>`
-            : "";
+      const renderApp = () => {
+        if (!state.user) return;
+        const viewHome = document.getElementById("view-home");
+        const viewDetail = document.getElementById("view-detail");
 
-          const cardClass = isNext
-            ? isLate
-              ? "rounded-xl p-4 space-y-3 bg-rose-50/70 border-2 border-rose-500 shadow-md"
-              : "rounded-xl p-4 space-y-3 bg-indigo-50/70 border-2 border-indigo-500 shadow-md"
-            : row.status === "paid"
-            ? "rounded-xl p-4 space-y-3 bg-emerald-50/40 border border-emerald-200 shadow-sm"
-            : "rounded-xl p-4 space-y-3 bg-white border border-slate-300 shadow-sm";
+        if (state.selectedVehicleId) {
+          viewHome.classList.add("hidden");
+          viewDetail.classList.remove("hidden");
+          renderDetail();
+        } else {
+          viewDetail.classList.add("hidden");
+          viewHome.classList.remove("hidden");
+          renderHome();
+        }
+      };
 
-          const actionBtn =
-            row.status === "paid"
-              ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-emerald-50 active:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition-colors">
-                   <i data-lucide="check" class="w-4 h-4"></i> Baixada · Editar Data
-                 </button>`
-              : isNext
-              ? `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg ${isLate ? "bg-rose-600 active:bg-rose-700" : "bg-indigo-600 active:bg-indigo-700"} text-white text-sm font-extrabold shadow-sm transition-colors">
-                   <i data-lucide="check" class="w-4 h-4"></i> Baixar
-                 </button>`
-              : `<button type="button" data-action="pay-installment" data-index="${row.index}" class="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg bg-slate-800 active:bg-indigo-600 text-white text-sm font-semibold transition-colors">
-                   <i data-lucide="check" class="w-4 h-4"></i> Baixar
-                 </button>`;
+      // ==================== MODAIS E LOGIN ====================
+      const showLoginError = (msg) => {
+        const box = document.getElementById("login-error-box");
+        const text = document.getElementById("login-error-text");
+        if (msg) {
+          text.textContent = msg;
+          box.classList.remove("hidden");
+        } else {
+          box.classList.add("hidden");
+        }
+      };
 
-          return `
-            <div class="${cardClass}">
-              ${nextBanner}
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-sm font-bold text-slate-900">${itemPrefix} ${row.index} / ${metrics.totalInstallments}</span>
-                ${badgeHtml}
-              </div>
-              <div class="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span class="text-slate-500 block">Vencimento</span>
-                  <strong class="text-slate-900 text-sm">${formatDateBR(row.dueDate)}</strong>
-                </div>
-                <div class="text-right">
-                  <span class="text-slate-500 block">Valor</span>
-                  <strong class="text-slate-900 text-sm">${formatBRL(row.amount)}</strong>
-                </div>
-              </div>
-              ${
-                row.receivedDate
-                  ? `<div class="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-100/70 px-2.5 py-1.5 rounded-lg">
-                       <i data-lucide="calendar-check" class="w-3.5 h-3.5 shrink-0"></i>
-                       Recebido em ${formatDateBR(row.receivedDate)}
-                     </div>`
-                  : ""
-              }
-              <div>${actionBtn}</div>
-            </div>
-          `;
-        })
-        .join("");
+      const showVehicleFormError = (msg) => {
+        const el = document.getElementById("vehicle-form-error");
+        if (msg) {
+          el.textContent = msg;
+          el.classList.remove("hidden");
+        } else {
+          el.classList.add("hidden");
+        }
+      };
 
-      if (window.lucide) window.lucide.createIcons();
-    };
+      const setFormModeUI = (mode) => {
+        const cleanMode = mode === "weekly" ? "weekly" : "monthly";
+        document.getElementById("input-preferred-mode").value = cleanMode;
 
-    const renderDetail = () => {
-      const vehicle = state.vehicles.find((v) => v.id === state.selectedVehicleId);
-      if (!vehicle) {
+        const btnMonthly = document.getElementById("btn-mode-monthly");
+        const btnWeekly = document.getElementById("btn-mode-weekly");
+
+        const activeClass = "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 text-sm font-bold transition-all";
+        const inactiveClass = "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:border-slate-300 text-sm font-bold transition-all";
+
+        if (cleanMode === "weekly") {
+          btnWeekly.className = activeClass;
+          btnMonthly.className = inactiveClass;
+          document.getElementById("label-installment-value").textContent = "Valor da Parcela Semanal (R$) *";
+          document.getElementById("input-installment-value").placeholder = "Ex: 600.00";
+          document.getElementById("label-installment-count").textContent = "Quantidade de Parcelas (Semanas) *";
+          document.getElementById("input-installment-count").placeholder = "Ex: 144";
+          document.getElementById("label-payment-date").textContent = "Data do 1º Pagamento Semanal *";
+          document.getElementById("preview-plan-label").textContent = "Resumo Semanal";
+        } else {
+          btnMonthly.className = activeClass;
+          btnWeekly.className = inactiveClass;
+          document.getElementById("label-installment-value").textContent = "Valor da Parcela Mensal (R$) *";
+          document.getElementById("input-installment-value").placeholder = "Ex: 2400.00";
+          document.getElementById("label-installment-count").textContent = "Quantidade de Parcelas (Meses) *";
+          document.getElementById("input-installment-count").placeholder = "Ex: 36";
+          document.getElementById("label-payment-date").textContent = "Data do 1º Pagamento Mensal *";
+          document.getElementById("preview-plan-label").textContent = "Resumo Mensal";
+        }
+
+        updateVehicleFormPreview();
+      };
+
+      const updateVehicleFormPreview = () => {
+        const val = Number(document.getElementById("input-installment-value").value) || 0;
+        const count = parseInt(document.getElementById("input-installment-count").value, 10) || 0;
+        document.getElementById("preview-total").textContent = formatBRL(val * count);
+        document.getElementById("preview-plan-detail").textContent = `${count}x de ${formatBRL(val)}`;
+      };
+
+      const openVehicleModal = (vehicleToEdit = null) => {
+        showVehicleFormError(null);
+        const modal = document.getElementById("modal-vehicle");
+        const title = document.getElementById("modal-vehicle-title");
+        const idInput = document.getElementById("vehicle-id-input");
+
+        if (vehicleToEdit) {
+          const metrics = computeVehicleMetrics(vehicleToEdit);
+          title.textContent = "Editar Veículo / Contrato";
+          idInput.value = vehicleToEdit.id;
+          document.getElementById("input-vehicle-name").value = vehicleToEdit.name || "";
+          document.getElementById("input-vehicle-plate").value = vehicleToEdit.plate || "";
+          document.getElementById("input-client-name").value = vehicleToEdit.clientName || "";
+          document.getElementById("input-installment-value").value = Number(metrics.installmentAmount.toFixed(2)) || "";
+          document.getElementById("input-installment-count").value = metrics.totalInstallments || "";
+          document.getElementById("input-payment-date").value = vehicleToEdit.paymentDate || todayISO();
+          setFormModeUI(metrics.mode);
+        } else {
+          title.textContent = "Cadastrar Novo Veículo";
+          idInput.value = "";
+          document.getElementById("form-vehicle").reset();
+          document.getElementById("input-payment-date").value = todayISO();
+          setFormModeUI("monthly");
+        }
+
+        modal.classList.remove("hidden");
+        if (window.lucide) window.lucide.createIcons();
+      };
+
+      const closeVehicleModal = () => {
+        document.getElementById("modal-vehicle").classList.add("hidden");
+      };
+
+      const openPaymentModal = (vehicle, index) => {
+        const metrics = computeVehicleMetrics(vehicle);
+        const row = metrics.rows.find((r) => r.index === index);
+        if (!row) return;
+
+        const itemPrefix = metrics.mode === "weekly" ? "Semana" : "Parcela Mensal";
+        state.pendingPaymentTarget = { vehicleId: vehicle.id, index, mode: metrics.mode };
+
+        document.getElementById("modal-payment-title").textContent = row.receivedDate
+          ? "Editar Baixa da Parcela"
+          : "Baixar Parcela";
+        document.getElementById("payment-ref-label").textContent = `${itemPrefix} ${row.index} / ${metrics.totalInstallments}`;
+        document.getElementById("payment-due-label").textContent = formatDateBR(row.dueDate);
+        document.getElementById("payment-amount-label").textContent = formatBRL(row.amount);
+        document.getElementById("input-received-date").value = row.receivedDate || todayISO();
+
+        const undoBtn = document.getElementById("btn-undo-payment");
+        if (row.receivedDate) {
+          undoBtn.classList.remove("hidden");
+        } else {
+          undoBtn.classList.add("hidden");
+        }
+
+        document.getElementById("modal-payment").classList.remove("hidden");
+      };
+
+      const closePaymentModal = () => {
+        state.pendingPaymentTarget = null;
+        document.getElementById("modal-payment").classList.add("hidden");
+      };
+
+      const openDeleteModal = (vehicle) => {
+        document.getElementById("delete-confirm-text").textContent =
+          `Deseja realmente excluir "${vehicle.name}" (placa ${vehicle.plate}) e todo o histórico de parcelas?`;
+        document.getElementById("modal-delete").classList.remove("hidden");
+      };
+
+      const closeDeleteModal = () => {
+        document.getElementById("modal-delete").classList.add("hidden");
+      };
+
+      // ==================== EVENT LISTENERS ====================
+      // Login
+      document.getElementById("btn-toggle-password").addEventListener("click", () => {
+        const input = document.getElementById("input-login-password");
+        input.type = input.type === "password" ? "text" : "password";
+      });
+
+      document.getElementById("form-login").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        showLoginError(null);
+
+        const email = document.getElementById("input-login-email").value.trim();
+        const password = document.getElementById("input-login-password").value;
+
+        if (!email || !password) {
+          showLoginError("Preencha o e-mail e a senha para entrar.");
+          return;
+        }
+        if (!auth || !authApi) {
+          showLoginError("Serviço de login indisponível no momento.");
+          return;
+        }
+
+        const btn = document.getElementById("btn-login-submit");
+        btn.disabled = true;
+        btn.textContent = "Entrando...";
+
+        try {
+          await authApi.signInWithEmailAndPassword(auth, email, password);
+          document.getElementById("form-login").reset();
+          showToast("Login realizado com sucesso!");
+        } catch (err) {
+          const code = err?.code || "";
+          if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+            showLoginError("E-mail ou senha incorretos.");
+          } else if (code === "auth/invalid-email") {
+            showLoginError("Formato de e-mail inválido.");
+          } else if (code === "auth/too-many-requests") {
+            showLoginError("Muitas tentativas seguidas. Aguarde alguns minutos e tente novamente.");
+          } else {
+            showLoginError("Não foi possível autenticar. Verifique sua conexão.");
+          }
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = `<i data-lucide="log-in" class="w-4 h-4"></i><span>Entrar no Sistema</span>`;
+          if (window.lucide) window.lucide.createIcons();
+        }
+      });
+
+      document.getElementById("btn-logout").addEventListener("click", async () => {
+        if (auth && authApi) {
+          try {
+            await authApi.signOut(auth);
+            showToast("Sessão encerrada.", "info");
+          } catch (e) {
+            showToast("Erro ao sair da conta.", "error");
+          }
+        }
+      });
+
+      document.getElementById("btn-install-pwa").addEventListener("click", triggerPWAInstall);
+      document.getElementById("btn-login-install-pwa").addEventListener("click", triggerPWAInstall);
+
+      // Navegação
+      document.getElementById("btn-home-logo").addEventListener("click", () => {
         state.selectedVehicleId = null;
         renderApp();
-        return;
-      }
+      });
 
-      const metrics = computeVehicleMetrics(vehicle);
-
-      document.getElementById("detail-vehicle-name").textContent = vehicle.name;
-      document.getElementById("detail-vehicle-plate").textContent = vehicle.plate;
-      document.getElementById("detail-client-name").textContent = vehicle.clientName;
-      document.getElementById("detail-start-date").textContent = formatDateBR(vehicle.paymentDate);
-      document.getElementById("detail-installment-summary").textContent = `${metrics.totalInstallments}x (${metrics.planLabel})`;
-
-      // Mostra somente o bloco da modalidade do cliente
-      document.getElementById("detail-plan-value-label").textContent = `Parcela ${metrics.planLabel}`;
-      document.getElementById("detail-plan-value-amount").textContent = formatBRL(metrics.installmentAmount);
-      document.getElementById("detail-mode-badge").textContent = `Plano ${metrics.planLabel}`;
-
-      document.getElementById("detail-progress-label").textContent = `${metrics.progressPct.toFixed(1)}% (${metrics.paidCount}/${metrics.totalInstallments} ${metrics.unitPlural})`;
-      document.getElementById("detail-progress-bar").style.width = `${metrics.progressPct.toFixed(1)}%`;
-
-      document.getElementById("detail-kpi-total").textContent = formatBRL(metrics.totalContract);
-      document.getElementById("detail-kpi-total-sub").textContent = `${metrics.totalInstallments} ${metrics.unitPlural}`;
-      document.getElementById("detail-kpi-paid").textContent = formatBRL(metrics.paidAmount);
-      document.getElementById("detail-kpi-paid-sub").textContent = `${metrics.paidCount} de ${metrics.totalInstallments} pagas`;
-      document.getElementById("detail-kpi-remaining").textContent = formatBRL(metrics.remainingAmount);
-      document.getElementById("detail-kpi-remaining-sub").textContent = `${metrics.remainingCount} ${metrics.unitPlural} restantes`;
-      document.getElementById("detail-kpi-next-due").textContent = metrics.nextDueDate ? formatDateBR(metrics.nextDueDate) : "Quitado!";
-      document.getElementById("detail-kpi-overdue-sub").textContent =
-        metrics.overdueCount > 0
-          ? `${metrics.overdueCount} em atraso`
-          : metrics.isCompleted
-          ? "Contrato 100% quitado"
-          : "Pagamentos em dia";
-      document.getElementById("detail-kpi-overdue-sub").className =
-        metrics.overdueCount > 0 ? "text-[11px] sm:text-xs text-rose-600 font-semibold mt-0.5 truncate" : "text-[11px] sm:text-xs text-emerald-600 font-medium mt-0.5 truncate";
-
-      renderDetailCharts(metrics);
-      renderDetailInstallments(metrics);
-    };
-
-    const renderApp = () => {
-      const viewHome = document.getElementById("view-home");
-      const viewDetail = document.getElementById("view-detail");
-
-      if (state.selectedVehicleId) {
-        viewHome.classList.add("hidden");
-        viewDetail.classList.remove("hidden");
-        renderDetail();
-      } else {
-        viewDetail.classList.add("hidden");
-        viewHome.classList.remove("hidden");
-        renderHome();
-      }
-    };
-
-    // ==================== MODAIS E SELETOR MENSAL / SEMANAL ====================
-    const setFormModeUI = (mode) => {
-      const cleanMode = mode === "weekly" ? "weekly" : "monthly";
-      document.getElementById("input-preferred-mode").value = cleanMode;
-
-      const btnMonthly = document.getElementById("btn-mode-monthly");
-      const btnWeekly = document.getElementById("btn-mode-weekly");
-
-      const activeClass = "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 text-sm font-bold transition-all";
-      const inactiveClass = "flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 border-slate-200 bg-white text-slate-600 hover:border-slate-300 text-sm font-bold transition-all";
-
-      if (cleanMode === "weekly") {
-        btnWeekly.className = activeClass;
-        btnMonthly.className = inactiveClass;
-        document.getElementById("label-installment-value").textContent = "Valor da Parcela Semanal (R$) *";
-        document.getElementById("input-installment-value").placeholder = "Ex: 600.00";
-        document.getElementById("label-installment-count").textContent = "Quantidade de Parcelas (Semanas) *";
-        document.getElementById("input-installment-count").placeholder = "Ex: 144";
-        document.getElementById("label-payment-date").textContent = "Data do 1º Pagamento Semanal *";
-        document.getElementById("preview-plan-label").textContent = "Resumo Semanal";
-      } else {
-        btnMonthly.className = activeClass;
-        btnWeekly.className = inactiveClass;
-        document.getElementById("label-installment-value").textContent = "Valor da Parcela Mensal (R$) *";
-        document.getElementById("input-installment-value").placeholder = "Ex: 2400.00";
-        document.getElementById("label-installment-count").textContent = "Quantidade de Parcelas (Meses) *";
-        document.getElementById("input-installment-count").placeholder = "Ex: 36";
-        document.getElementById("label-payment-date").textContent = "Data do 1º Pagamento Mensal *";
-        document.getElementById("preview-plan-label").textContent = "Resumo Mensal";
-      }
-
-      updateVehicleFormPreview();
-    };
-
-    const updateVehicleFormPreview = () => {
-      const val = Number(document.getElementById("input-installment-value").value) || 0;
-      const count = parseInt(document.getElementById("input-installment-count").value, 10) || 0;
-      document.getElementById("preview-total").textContent = formatBRL(val * count);
-      document.getElementById("preview-plan-detail").textContent = `${count}x de ${formatBRL(val)}`;
-    };
-
-    const openVehicleModal = (vehicleToEdit = null) => {
-      const modal = document.getElementById("modal-vehicle");
-      const title = document.getElementById("modal-vehicle-title");
-      const idInput = document.getElementById("vehicle-id-input");
-
-      if (vehicleToEdit) {
-        const metrics = computeVehicleMetrics(vehicleToEdit);
-        title.textContent = "Editar Veículo / Contrato";
-        idInput.value = vehicleToEdit.id;
-        document.getElementById("input-vehicle-name").value = vehicleToEdit.name || "";
-        document.getElementById("input-vehicle-plate").value = vehicleToEdit.plate || "";
-        document.getElementById("input-client-name").value = vehicleToEdit.clientName || "";
-        document.getElementById("input-installment-value").value = Number(metrics.installmentAmount.toFixed(2)) || "";
-        document.getElementById("input-installment-count").value = metrics.totalInstallments || "";
-        document.getElementById("input-payment-date").value = vehicleToEdit.paymentDate || todayISO();
-        setFormModeUI(metrics.mode);
-      } else {
-        title.textContent = "Cadastrar Novo Veículo";
-        idInput.value = "";
-        document.getElementById("form-vehicle").reset();
-        document.getElementById("input-payment-date").value = todayISO();
-        setFormModeUI("monthly");
-      }
-
-      modal.classList.remove("hidden");
-      if (window.lucide) window.lucide.createIcons();
-    };
-
-    const closeVehicleModal = () => {
-      document.getElementById("modal-vehicle").classList.add("hidden");
-    };
-
-    const openPaymentModal = (vehicle, index) => {
-      const metrics = computeVehicleMetrics(vehicle);
-      const row = metrics.rows.find((r) => r.index === index);
-      if (!row) return;
-
-      const itemPrefix = metrics.mode === "weekly" ? "Semana" : "Parcela Mensal";
-      state.pendingPaymentTarget = {
-        vehicleId: vehicle.id,
-        index,
-        mode: metrics.mode
-      };
-
-      document.getElementById("modal-payment-title").textContent = row.receivedDate
-        ? "Editar Baixa da Parcela"
-        : "Baixar Parcela";
-      document.getElementById("payment-ref-label").textContent = `${itemPrefix} ${row.index} / ${metrics.totalInstallments}`;
-      document.getElementById("payment-due-label").textContent = formatDateBR(row.dueDate);
-      document.getElementById("payment-amount-label").textContent = formatBRL(row.amount);
-      document.getElementById("input-received-date").value = row.receivedDate || todayISO();
-
-      const undoBtn = document.getElementById("btn-undo-payment");
-      if (row.receivedDate) {
-        undoBtn.classList.remove("hidden");
-      } else {
-        undoBtn.classList.add("hidden");
-      }
-
-      document.getElementById("modal-payment").classList.remove("hidden");
-    };
-
-    const closePaymentModal = () => {
-      state.pendingPaymentTarget = null;
-      document.getElementById("modal-payment").classList.add("hidden");
-    };
-
-    const openDeleteModal = (vehicle) => {
-      document.getElementById("delete-confirm-text").textContent =
-        `Deseja realmente excluir "${vehicle.name}" (placa ${vehicle.plate}) e todo o histórico de parcelas?`;
-      document.getElementById("modal-delete").classList.remove("hidden");
-    };
-
-    const closeDeleteModal = () => {
-      document.getElementById("modal-delete").classList.add("hidden");
-    };
-
-    const loadDemoVehicles = async () => {
-      const demos = [
-        {
-          name: "Fiat Argo Drive 1.0 2023",
-          plate: "RFA-4E21",
-          clientName: "Carlos Eduardo Mendes",
-          installmentValue: 650,
-          installmentCount: 144,
-          paymentDate: addDaysISO(todayISO(), -42),
-          preferredMode: "weekly",
-          unitMode: "direct",
-          payments: {
-            p_1: addDaysISO(todayISO(), -42),
-            p_2: addDaysISO(todayISO(), -35),
-            p_3: addDaysISO(todayISO(), -28),
-            p_4: addDaysISO(todayISO(), -21),
-            p_5: addDaysISO(todayISO(), -14),
-            p_6: addDaysISO(todayISO(), -7)
-          }
-        },
-        {
-          name: "Hyundai HB20 Sense 2022",
-          plate: "BRA-9J15",
-          clientName: "Fernanda Oliveira",
-          installmentValue: 2400,
-          installmentCount: 24,
-          paymentDate: addMonthsISO(todayISO(), -5),
-          preferredMode: "monthly",
-          unitMode: "direct",
-          payments: {
-            p_1: addMonthsISO(todayISO(), -5),
-            p_2: addMonthsISO(todayISO(), -4),
-            p_3: addMonthsISO(todayISO(), -3),
-            p_4: addMonthsISO(todayISO(), -2),
-            p_5: addMonthsISO(todayISO(), -1)
-          }
-        }
-      ];
-
-      for (const item of demos) {
-        if (state.dbMode === "firebase" && db && fsApi) {
-          await fsApi.addDoc(fsApi.collection(db, COLLECTION_NAME), {
-            ...item,
-            createdAt: fsApi.serverTimestamp()
-          });
-        } else {
-          state.vehicles.unshift({
-            id: "demo_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
-            ...item,
-            createdAt: Date.now()
-          });
-        }
-      }
-      if (state.dbMode !== "firebase") {
-        saveLocal();
+      document.getElementById("btn-back-home").addEventListener("click", () => {
+        state.selectedVehicleId = null;
         renderApp();
-      }
-      showToast("Veículos de exemplo carregados!");
-    };
+      });
 
-    // ==================== EVENT LISTENERS ====================
-    document.getElementById("btn-home-logo").addEventListener("click", () => {
-      state.selectedVehicleId = null;
-      renderApp();
-    });
+      document.getElementById("btn-open-new-vehicle").addEventListener("click", () => openVehicleModal(null));
+      document.getElementById("btn-empty-register").addEventListener("click", () => openVehicleModal(null));
+      document.getElementById("btn-retry-firebase").addEventListener("click", () => startRealtimeListener());
 
-    document.getElementById("btn-back-home").addEventListener("click", () => {
-      state.selectedVehicleId = null;
-      renderApp();
-    });
+      document.getElementById("btn-mode-monthly").addEventListener("click", () => setFormModeUI("monthly"));
+      document.getElementById("btn-mode-weekly").addEventListener("click", () => setFormModeUI("weekly"));
 
-    document.getElementById("btn-open-new-vehicle").addEventListener("click", () => openVehicleModal(null));
-    document.getElementById("btn-empty-register").addEventListener("click", () => openVehicleModal(null));
-    document.getElementById("btn-load-demo").addEventListener("click", () => {
-      loadDemoVehicles().catch(() => showToast("Erro ao carregar exemplo.", "error"));
-    });
-    document.getElementById("btn-retry-firebase").addEventListener("click", () => initFirebase());
+      document.getElementById("btn-close-vehicle-modal").addEventListener("click", closeVehicleModal);
+      document.getElementById("btn-cancel-vehicle-modal").addEventListener("click", closeVehicleModal);
+      document.getElementById("input-installment-value").addEventListener("input", updateVehicleFormPreview);
+      document.getElementById("input-installment-count").addEventListener("input", updateVehicleFormPreview);
 
-    document.getElementById("btn-mode-monthly").addEventListener("click", () => setFormModeUI("monthly"));
-    document.getElementById("btn-mode-weekly").addEventListener("click", () => setFormModeUI("weekly"));
+      document.getElementById("form-vehicle").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        showVehicleFormError(null);
 
-    document.getElementById("btn-close-vehicle-modal").addEventListener("click", closeVehicleModal);
-    document.getElementById("btn-cancel-vehicle-modal").addEventListener("click", closeVehicleModal);
-    document.getElementById("input-installment-value").addEventListener("input", updateVehicleFormPreview);
-    document.getElementById("input-installment-count").addEventListener("input", updateVehicleFormPreview);
+        const id = document.getElementById("vehicle-id-input").value;
+        const payload = {
+          name: document.getElementById("input-vehicle-name").value,
+          plate: document.getElementById("input-vehicle-plate").value,
+          clientName: document.getElementById("input-client-name").value,
+          installmentValue: document.getElementById("input-installment-value").value,
+          installmentCount: document.getElementById("input-installment-count").value,
+          paymentDate: document.getElementById("input-payment-date").value,
+          preferredMode: document.getElementById("input-preferred-mode").value
+        };
 
-    document.getElementById("form-vehicle").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const saveBtn = document.getElementById("btn-save-vehicle");
-      saveBtn.disabled = true;
-      saveBtn.textContent = "Salvando...";
+        const validation = validateVehiclePayload(payload);
+        if (!validation.ok) {
+          showVehicleFormError(validation.error);
+          return;
+        }
 
-      const id = document.getElementById("vehicle-id-input").value;
-      const payload = {
-        name: document.getElementById("input-vehicle-name").value,
-        plate: document.getElementById("input-vehicle-plate").value,
-        clientName: document.getElementById("input-client-name").value,
-        installmentValue: document.getElementById("input-installment-value").value,
-        installmentCount: document.getElementById("input-installment-count").value,
-        paymentDate: document.getElementById("input-payment-date").value,
-        preferredMode: document.getElementById("input-preferred-mode").value
+        const saveBtn = document.getElementById("btn-save-vehicle");
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Salvando...";
+
+        try {
+          if (id) {
+            await updateVehicle(id, payload);
+            showToast("Veículo atualizado em tempo real!");
+          } else {
+            await createVehicle(payload);
+            showToast("Veículo cadastrado em tempo real!");
+          }
+          closeVehicleModal();
+        } catch (err) {
+          showVehicleFormError(err?.message || "Erro ao salvar veículo no Firebase.");
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Salvar Veículo";
+        }
+      });
+
+      document.getElementById("input-search-vehicles").addEventListener("input", (e) => {
+        state.searchQuery = e.target.value;
+        renderHome();
+      });
+
+      document.getElementById("select-filter-status").addEventListener("change", (e) => {
+        state.statusFilter = e.target.value;
+        renderHome();
+      });
+
+      document.getElementById("vehicles-grid").addEventListener("click", (e) => {
+        const card = e.target.closest("[data-vehicle-card]");
+        if (!card) return;
+        const vehicleId = card.getAttribute("data-vehicle-card");
+        const vehicle = state.vehicles.find((v) => v.id === vehicleId);
+        if (!vehicle) return;
+
+        state.selectedVehicleId = vehicleId;
+        state.installmentFilter = "all";
+        document.getElementById("select-installment-filter").value = "all";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        renderApp();
+      });
+
+      document.getElementById("select-installment-filter").addEventListener("change", (e) => {
+        state.installmentFilter = e.target.value;
+        renderDetail();
+      });
+
+      document.getElementById("btn-edit-vehicle").addEventListener("click", () => {
+        const vehicle = state.vehicles.find((v) => v.id === state.selectedVehicleId);
+        if (vehicle) openVehicleModal(vehicle);
+      });
+
+      document.getElementById("btn-delete-vehicle").addEventListener("click", () => {
+        const vehicle = state.vehicles.find((v) => v.id === state.selectedVehicleId);
+        if (vehicle) openDeleteModal(vehicle);
+      });
+
+      document.getElementById("btn-cancel-delete").addEventListener("click", closeDeleteModal);
+      document.getElementById("btn-confirm-delete").addEventListener("click", async () => {
+        if (!state.selectedVehicleId) return;
+        try {
+          await removeVehicle(state.selectedVehicleId);
+          closeDeleteModal();
+          showToast("Veículo excluído.");
+        } catch (err) {
+          showToast(err?.message || "Erro ao excluir veículo.", "error");
+        }
+      });
+
+      const handleInstallmentClick = (e) => {
+        const btn = e.target.closest("button[data-action='pay-installment']");
+        if (!btn) return;
+        const vehicle = state.vehicles.find((v) => v.id === state.selectedVehicleId);
+        if (!vehicle) return;
+        const index = parseInt(btn.getAttribute("data-index"), 10);
+        if (!Number.isInteger(index) || index < 1) return;
+        openPaymentModal(vehicle, index);
       };
 
-      try {
-        if (id) {
-          await updateVehicle(id, payload);
-          showToast("Veículo atualizado com sucesso!");
-        } else {
-          await createVehicle(payload);
-          showToast("Veículo cadastrado com sucesso!");
+      document.getElementById("installments-tbody").addEventListener("click", handleInstallmentClick);
+      document.getElementById("installments-mobile-list").addEventListener("click", handleInstallmentClick);
+      document.getElementById("next-installment-spotlight").addEventListener("click", handleInstallmentClick);
+
+      document.getElementById("btn-close-payment-modal").addEventListener("click", closePaymentModal);
+      document.getElementById("btn-cancel-payment-modal").addEventListener("click", closePaymentModal);
+
+      document.getElementById("form-payment").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!state.pendingPaymentTarget) return;
+        const dateVal = document.getElementById("input-received-date").value;
+        if (!isValidISODate(dateVal)) {
+          showToast("Informe uma data de recebimento válida.", "error");
+          return;
         }
-        closeVehicleModal();
-      } catch (err) {
-        showToast("Erro ao salvar veículo. Verifique sua conexão.", "error");
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = "Salvar Veículo";
-      }
-    });
 
-    document.getElementById("input-search-vehicles").addEventListener("input", (e) => {
-      state.searchQuery = e.target.value;
-      renderHome();
-    });
+        const saveBtn = document.getElementById("btn-save-payment");
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Salvando...";
 
-    document.getElementById("select-filter-status").addEventListener("change", (e) => {
-      state.statusFilter = e.target.value;
-      renderHome();
-    });
+        try {
+          await saveInstallmentPayment(state.pendingPaymentTarget, dateVal);
+          closePaymentModal();
+          showToast("Parcela baixada em tempo real!");
+        } catch (err) {
+          showToast(err?.message || "Erro ao salvar recebimento.", "error");
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Salvar Recebimento";
+        }
+      });
 
-    document.getElementById("vehicles-grid").addEventListener("click", (e) => {
-      const card = e.target.closest("[data-vehicle-card]");
-      if (!card) return;
-      const vehicleId = card.getAttribute("data-vehicle-card");
-      const vehicle = state.vehicles.find((v) => v.id === vehicleId);
-      if (!vehicle) return;
+      document.getElementById("btn-undo-payment").addEventListener("click", async () => {
+        if (!state.pendingPaymentTarget) return;
+        try {
+          await saveInstallmentPayment(state.pendingPaymentTarget, null);
+          closePaymentModal();
+          showToast("Baixa estornada.", "info");
+        } catch (err) {
+          showToast(err?.message || "Erro ao estornar baixa.", "error");
+        }
+      });
 
-      state.selectedVehicleId = vehicleId;
-      state.installmentFilter = "all";
-      document.getElementById("select-installment-filter").value = "all";
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      renderApp();
-    });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          closeVehicleModal();
+          closePaymentModal();
+          closeDeleteModal();
+        }
+      });
 
-    document.getElementById("select-installment-filter").addEventListener("change", (e) => {
-      state.installmentFilter = e.target.value;
-      renderDetail();
-    });
-
-    document.getElementById("btn-edit-vehicle").addEventListener("click", () => {
-      const vehicle = state.vehicles.find((v) => v.id === state.selectedVehicleId);
-      if (vehicle) openVehicleModal(vehicle);
-    });
-
-    document.getElementById("btn-delete-vehicle").addEventListener("click", () => {
-      const vehicle = state.vehicles.find((v) => v.id === state.selectedVehicleId);
-      if (vehicle) openDeleteModal(vehicle);
-    });
-
-    document.getElementById("btn-cancel-delete").addEventListener("click", closeDeleteModal);
-    document.getElementById("btn-confirm-delete").addEventListener("click", async () => {
-      if (!state.selectedVehicleId) return;
-      try {
-        await removeVehicle(state.selectedVehicleId);
-        closeDeleteModal();
-        showToast("Veículo excluído.");
-      } catch (err) {
-        showToast("Erro ao excluir veículo.", "error");
-      }
-    });
-
-    // Delegação de clique nos botões Baixar (tanto Desktop quanto Mobile)
-    const handleInstallmentClick = (e) => {
-      const btn = e.target.closest("button[data-action='pay-installment']");
-      if (!btn) return;
-      const vehicle = state.vehicles.find((v) => v.id === state.selectedVehicleId);
-      if (!vehicle) return;
-      const index = parseInt(btn.getAttribute("data-index"), 10);
-      openPaymentModal(vehicle, index);
-    };
-
-    document.getElementById("installments-tbody").addEventListener("click", handleInstallmentClick);
-    document.getElementById("installments-mobile-list").addEventListener("click", handleInstallmentClick);
-    document.getElementById("next-installment-spotlight").addEventListener("click", handleInstallmentClick);
-
-    document.getElementById("btn-close-payment-modal").addEventListener("click", closePaymentModal);
-    document.getElementById("btn-cancel-payment-modal").addEventListener("click", closePaymentModal);
-
-    document.getElementById("form-payment").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (!state.pendingPaymentTarget) return;
-      const dateVal = document.getElementById("input-received-date").value;
-      if (!dateVal) return;
-
-      const saveBtn = document.getElementById("btn-save-payment");
-      saveBtn.disabled = true;
-      saveBtn.textContent = "Salvando...";
-
-      try {
-        await saveInstallmentPayment(state.pendingPaymentTarget, dateVal);
-        closePaymentModal();
-        showToast("Parcela baixada com sucesso!");
-      } catch (err) {
-        showToast("Erro ao salvar recebimento.", "error");
-      } finally {
-        saveBtn.disabled = false;
-        saveBtn.textContent = "Salvar Recebimento";
-      }
-    });
-
-    document.getElementById("btn-undo-payment").addEventListener("click", async () => {
-      if (!state.pendingPaymentTarget) return;
-      try {
-        await saveInstallmentPayment(state.pendingPaymentTarget, null);
-        closePaymentModal();
-        showToast("Baixa estornada.", "info");
-      } catch (err) {
-        showToast("Erro ao estornar baixa.", "error");
-      }
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        closeVehicleModal();
-        closePaymentModal();
-        closeDeleteModal();
-      }
-    });
-
-    // Inicialização com tela de carregamento ativa até resposta do Firebase
-    if (window.lucide) window.lucide.createIcons();
-    renderApp();
-    initFirebase();
+      // Inicialização
+      if (window.lucide) window.lucide.createIcons();
+      setupPWA();
+      updateAuthScreen();
+      initFirebase();
+    })();
   </script>
 </body>
 </html>
