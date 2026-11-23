@@ -6,12 +6,33 @@
   <meta name="theme-color" content="#4f46e5" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="FrotaCompra" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
-  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
-  <title>FrotaCompra — Controle de Veículos</title>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Gestão Locação" />
+  <link rel="icon" type="image/png" href="icon.png" />
+  <link rel="apple-touch-icon" href="icon.png" />
+  <link id="manifest-link" rel="manifest" />
+  <script>
+    (function () {
+      try {
+        const iconUrl = new URL("icon.png", window.location.href).href;
+        const manifest = {
+          name: "Gestão Locação",
+          short_name: "Gestão Locação",
+          description: "Controle de locação de veículos",
+          start_url: window.location.href,
+          display: "standalone",
+          background_color: "#e6ecf5",
+          theme_color: "#4f46e5",
+          icons: [
+            { src: iconUrl, sizes: "192x192 512x512", type: "image/png", purpose: "any maskable" }
+          ]
+        };
+        const manifestStr = encodeURIComponent(JSON.stringify(manifest));
+        document.getElementById("manifest-link").setAttribute("href", "data:application/json;charset=utf-8," + manifestStr);
+      } catch (e) {}
+    })();
+  </script>
+  <title>Gestão Locação — Controle de locação de veículos</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
@@ -95,7 +116,7 @@
     </div>
     <div class="spinner-ring" role="status" aria-label="Verificando acesso"></div>
     <div>
-      <p class="text-base font-bold text-slate-800">FrotaCompra</p>
+      <p class="text-base font-bold text-slate-800">Gestão Locação</p>
       <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Verificando autenticação...</p>
     </div>
   </div>
@@ -107,8 +128,8 @@
         <div class="w-14 h-14 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center mx-auto mb-3">
           <i data-lucide="shield-check" class="w-7 h-7 text-white"></i>
         </div>
-        <h1 class="text-xl font-extrabold tracking-tight">FrotaCompra</h1>
-        <p class="text-xs text-indigo-100 mt-1">Acesso restrito ao administrador</p>
+        <h1 class="text-xl font-extrabold tracking-tight">Gestão Locação</h1>
+        <p class="text-xs text-indigo-100 mt-1">Controle de locação de veículos</p>
       </div>
 
       <form id="form-login" class="p-6 space-y-4" novalidate>
@@ -175,8 +196,8 @@
               <i data-lucide="car" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </div>
             <div class="min-w-0">
-              <h1 class="text-sm sm:text-lg font-bold text-slate-900 leading-tight truncate">FrotaCompra</h1>
-              <p id="header-user-email" class="text-[11px] text-slate-500 hidden sm:block leading-tight truncate max-w-[200px]">Locação com Intenção de Compra</p>
+              <h1 class="text-sm sm:text-lg font-bold text-slate-900 leading-tight truncate">Gestão Locação</h1>
+              <p class="text-[11px] text-slate-500 hidden sm:block leading-tight truncate max-w-[220px]">Controle de locação de veículos</p>
             </div>
           </button>
         </div>
@@ -724,8 +745,16 @@
 
       // ==================== REGISTRO PWA (SERVICE WORKER + INSTALL PROMPT) ====================
       const setupPWA = () => {
-        if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
-          navigator.serviceWorker.register("sw.js").catch(() => {});
+        if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
+          window.addEventListener("load", () => {
+            navigator.serviceWorker.getRegistrations().then((regs) => {
+              if (regs.length === 0) {
+                const swCode = "self.addEventListener('install', e => self.skipWaiting()); self.addEventListener('activate', e => e.waitUntil(self.clients.claim())); self.addEventListener('fetch', e => {});";
+                const blob = new Blob([swCode], { type: "application/javascript" });
+                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+              }
+            }).catch(() => {});
+          });
         }
 
         window.addEventListener("beforeinstallprompt", (e) => {
@@ -1078,10 +1107,7 @@
 
         viewLogin.classList.add("hidden");
         appShell.classList.remove("hidden");
-        const emailLabel = document.getElementById("header-user-email");
-        if (emailLabel && state.user.email) {
-          emailLabel.textContent = state.user.email;
-        }
+
         renderApp();
       };
 
@@ -1100,7 +1126,7 @@
           auth = authApi.getAuth(app);
 
           try {
-            await authApi.setPersistence(auth, authApi.browserLocalPersistence);
+            await authApi.setPersistence(auth, authApi.browserSessionPersistence);
           } catch (e) {}
 
           authApi.onAuthStateChanged(auth, (user) => {
